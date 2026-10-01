@@ -188,3 +188,19 @@ memory than a 1 MiB cache holds, which the results must say.
 
 **Train/serve consistency.** A model must be run with the `--history` value its training data
 was exported with; nothing checks this yet.
+
+## D18. Training data and model for the learned policy (M3)
+
+Chosen on a dev split (requests 5M–7.5M of Twitter cluster26) after the diagnosis in
+docs/m3-results.md; evaluated once on a test split (7.5M–10M).
+
+- **Training data: sampled-LRU collector + random collector, pooled.** LRU-collected data alone
+  never contains old keys, so the model kept dead keys forever (distribution shift).
+  **Rejected:** on-policy rounds (DAgger style): they help (59.50% → 61.20% over two rounds, on
+  the whole second half) but need iteration, while adding random-cache data reached 63.05%
+  in one step.
+- **Model: 128 trees × 63 leaves, regression on log1p(distance)** (D12 stands). +3.34 pp over
+  32 × 31 on dev, at about 4–5× the inference cost. **Rejected:** binary labels at horizons
+  12k/25k, a clipped label, lambdarank (all equal or worse on dev), and 5× more rows (no gain).
+- **Evaluation protocol: train / dev / test by time** (0–5M / 5M–7.5M / 7.5M–10M). Results
+  before this change used the whole second half and were used to choose what to try next.

@@ -157,3 +157,102 @@ v1 validation rows, from the LRU-driven cache): oracle 16.076, v1 11.775, random
 5. **Hypothesis rejected: fixed-period keys.** Distances to the next access are concentrated
    (p10–p90 6,191–17,868) and Spearman(age, distance) is −0.26, but only 15.2% of re-requests come
    within 10% of the key's previous gap, so most keys aren't strictly periodic.
+
+## Memory window and data mix (Twitter, 1 MiB)
+
+Measured 2026-10-01. Reproduce with `tools/m3_memory_window.sh`, `tools/m3_round2.sh`,
+`tools/m3_labels.sh`, `tools/m3_round3.sh`, `tools/m3_round4.sh` (in that order).
+
+### Memory window (decisions D17)
+
+With `--history N`, candidates with no gap history drop from 38.5% to 3.7% (N = 10k) and
+3.1% (30k, 100k). The sampled-LRU collector's own hit rate is unchanged (51.08%), as expected.
+
+| model (hit rate on the last 5M requests) | N = 10k | N = 30k | N = 100k |
+|---|---|---|---|
+| mw1: LRU-collector data only | 46.81% | 46.34% | 48.46% |
+| mw2: + one on-policy round (pooled) | 59.50% | 59.62% | 59.14% |
+
+Offline, mw1 roughly doubles v1's eviction accuracy (66–68% vs 32.70%), **but online it's no
+better than v1**: the dead-key problem (diagnosis finding 3) still dominates. Window size
+barely matters, so the rest uses N = 10k (lowest memory).
+
+| model, N = 10k (last 5M requests) | training data | hit rate |
+|---|---|---|
+| mw3 | LRU + on-policy rounds 1 and 2 | 61.20% |
+| rnd | LRU + random collector | **63.05%** |
+| rnd_op | LRU + random + on-policy round 1 | 62.99% |
+
+**Data from a random-eviction cache fixes the distribution shift better than on-policy rounds**,
+with no iteration: a random cache keeps keys long enough that its candidates include the old,
+dead keys a learned policy's cache holds.
+
+What's left in mw2's own cache: dead keys are only 5.6% of candidates (vs 37.3% in mw1's) and
+never older than 31,018, but mw2 picks one in only 15.3% of evictions, though 87.4% of
+candidate sets have one. On every feature, dead keys look like live ones (median count 9 vs 6,
+delta_1 1,110 vs 1,110, age 1,665 vs 1,867). This is real churn, not label censoring: the
+never-again share is about 5% throughout the window (it rises only in the final 10k requests),
+and only 3.8% of "never again" keys come back in the second half. History features can't
+predict a key's last access, which bounds how close a model can get to the oracle.
+
+### Model selection on a dev split
+
+From here on, models are compared on a **dev split (requests 5M–7.5M)**, and the chosen one is
+evaluated once on a **test split (7.5M–10M)**. All train on the first 5M. Everything above
+used the whole second half and was used to choose what to try next.
+
+Baselines on dev: LRU 51.11%, W-TinyLFU 54.91%, random-sampled 58.60%, oracle-sampled
+79.82%, Belady 80.48%. All models below: LRU + random collector data, N = 10k.
+
+| model | change vs reg_lr | dev hit rate |
+|---|---|---|
+| reg_lr | regression, 32 trees × 31 leaves, every 50th eviction | 60.88% |
+| reg_r | random-collector data only | 60.85% |
+| bin12k_lr | binary label, distance > 12,000 | 60.34% |
+| bin25k_lr | binary label, distance > 25,000 | 59.54% |
+| clip | label log1p(min(distance, 100,000)) | 61.49% |
+| rank | lambdarank within each eviction | 54.77% |
+| more | 5× the rows (every 10th eviction; 30.2M rows) | 61.11% |
+| **big** | **128 trees × 63 leaves** | **64.22%** |
+| big_more | 128 × 63 and 5× the rows | 64.21% |
+
+- **Capacity helps (+3.34 pp); 5× more data doesn't (+0.23 pp small, −0.01 pp big).**
+- **Binary labels, clipped labels and lambdarank don't beat plain regression** enough to justify
+  them (clip +0.61 pp; the others are worse). D12 stands.
+- The binary horizons (12k, 25k) were estimated from the training half only: Belady's hit rate
+  there (71.72%) and 3.5k–7.5k objects in 1 MiB give item lifetimes of about 12k–26k requests.
+- **Cost:** the 128 × 63 model is about 4× slower to run. Its dev run (7.5M requests) took
+  43 min vs about 10 min for 32 × 31.
+- Memory: a 30.2M-row training run was killed by the OOM killer on this 11 GB machine;
+  `train.py` now loads data leanly (byte-identical model on the smaller data).
+- `LightGbmPredictor` uses the fast single-row API (63.4 s vs 73.1 s for 1M requests);
+  LightGBM itself costs 2.77 µs per row for 32 × 31 trees.
+
+## Final result: test split (Twitter cluster26, 1 MiB)
+
+Measured 2026-10-01 at commit `4ab1ae0` with `tools/m3_test.sh`. The model was chosen on dev
+before this was run; reg_lr was declared in advance as the cheaper variant. Train: requests
+0–5M. Test: requests 7.5M–10M (2,500,000 requests). One trace, one cache size, one seed.
+
+| policy | hit rate | byte hit rate |
+|---|---|---|
+| LRU | 51.57% | 54.66% |
+| W-TinyLFU | 55.58% | 55.30% |
+| random-sampled | 60.23% | 59.06% |
+| learned, 32 × 31 (reg_lr) | 65.21% | 71.42% |
+| **learned, 128 × 63 (big)** | **68.08%** | **74.37%** |
+| oracle-sampled | 81.20% | 79.96% |
+| Belady | 81.97% | 80.41% |
+
+- **The learned policy beats W-TinyLFU by 12.50 pp** (68.08% vs 55.58%) and random-sampled by
+  7.85 pp. That closes 47.4% of the gap between W-TinyLFU and Belady (12.50 of 26.39 pp).
+- **It is still 13.12 pp below oracle-sampled.** Part of that is keys' last accesses, which
+  history features can't predict (see "Memory window and data mix").
+- **The cheaper model gets 65.21%** (+9.63 pp over W-TinyLFU).
+- **Cost:** replaying all 10M requests took 2,998.89 s with the 128 × 63 model vs 592.92 s with
+  32 × 31 (5.1×). Step 8 has to measure time per eviction, and M4's time budget has to account
+  for it.
+
+**Not yet shown:** other cache sizes, other traces (cloudPhysicsIO has not been rerun with this
+pipeline), seed variation, and metadata memory (the 10k-key window is not charged to the
+cache's 1 MiB).
