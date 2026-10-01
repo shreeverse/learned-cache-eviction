@@ -12,10 +12,14 @@ struct SimOptions {
   // Treat every object as size 1, so capacity_bytes is a capacity in objects
   // (libCacheSim's --ignore-obj-size). Byte metrics still use the real sizes.
   bool ignore_size = false;
-  // Stop after this many requests; 0 means the whole trace.
+  // Stop after this many requests (warmup included); 0 means the whole trace.
   std::uint64_t max_requests = 0;
+  // Replay the first N requests to warm the cache, but leave them out of every count in
+  // SimResult, so policies are scored on a held-out suffix of the trace (decisions D10).
+  std::uint64_t warmup_requests = 0;
 };
 
+// Counts cover only requests after the warmup.
 struct SimResult {
   std::uint64_t requests = 0;
   std::uint64_t hits = 0;

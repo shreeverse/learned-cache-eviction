@@ -17,12 +17,14 @@ SimResult replay(TraceReader& reader, EvictionPolicy& policy, const SimOptions& 
   Cache cache(policy, options.capacity_bytes);
   SimResult result;
 
+  std::uint64_t replayed = 0;
   Request r;
-  while ((options.max_requests == 0 || result.requests < options.max_requests) && reader.next(r)) {
+  while ((options.max_requests == 0 || replayed < options.max_requests) && reader.next(r)) {
     const std::uint32_t real_size = r.size;
     if (options.ignore_size) r.size = 1;
 
     const bool hit = cache.access(r);
+    if (replayed++ < options.warmup_requests) continue;
     ++result.requests;
     result.bytes_requested += real_size;
     if (hit) {

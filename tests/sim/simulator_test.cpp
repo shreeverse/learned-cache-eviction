@@ -70,6 +70,34 @@ TEST(Simulate, MaxRequestsStopsEarly) {
   EXPECT_EQ(r.hits, 1U);
 }
 
+TEST(Simulate, WarmupRequestsWarmTheCacheButAreNotCounted) {
+  // Capacity 1 object. Warmup: 1 miss, 1 hit. Counted: 1 hit (still cached), 2 miss, 2 hit.
+  VectorReader reader({req(1, 4), req(1, 4), req(1, 4), req(2, 4), req(2, 4)});
+  LruPolicy lru;
+  const auto r = simulate(reader, lru, {.capacity_bytes = 4, .warmup_requests = 2});
+  EXPECT_EQ(r.requests, 3U);
+  EXPECT_EQ(r.hits, 2U);
+  EXPECT_EQ(r.bytes_requested, 12U);
+  EXPECT_EQ(r.bytes_hit, 8U);
+}
+
+TEST(Simulate, MaxRequestsIncludesWarmup) {
+  VectorReader reader({req(1), req(1), req(1), req(1)});
+  LruPolicy lru;
+  const auto r =
+      simulate(reader, lru, {.capacity_bytes = 10, .max_requests = 3, .warmup_requests = 1});
+  EXPECT_EQ(r.requests, 2U);
+  EXPECT_EQ(r.hits, 2U);
+}
+
+TEST(Simulate, WarmupLongerThanTraceCountsNothing) {
+  VectorReader reader({req(1), req(1)});
+  LruPolicy lru;
+  const auto r = simulate(reader, lru, {.capacity_bytes = 10, .warmup_requests = 5});
+  EXPECT_EQ(r.requests, 0U);
+  EXPECT_EQ(r.hit_rate(), 0.0);
+}
+
 TEST(Simulate, RewindsReaderSoItCanBeReplayed) {
   VectorReader reader({req(1), req(2), req(1)});
   LruPolicy first;
