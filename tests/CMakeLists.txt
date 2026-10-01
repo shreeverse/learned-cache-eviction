@@ -16,7 +16,8 @@ add_executable(policy_test
   policy/lfu_test.cpp
   policy/arc_test.cpp
   policy/wtinylfu_test.cpp
-  policy/belady_test.cpp)
+  policy/belady_test.cpp
+  policy/learned_test.cpp)
 target_include_directories(policy_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 # lc_sim: differential tests drive policies through the real Cache.
 target_link_libraries(policy_test PRIVATE lc_policy lc_sim GTest::gtest_main lc_warnings)
@@ -43,7 +44,8 @@ target_link_libraries(sketch_test PRIVATE lc_sketch GTest::gtest_main lc_warning
 gtest_discover_tests(sketch_test)
 
 add_executable(ml_test
-  ml/feature_tracker_test.cpp)
+  ml/feature_tracker_test.cpp
+  ml/predictor_test.cpp)
 target_include_directories(ml_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(ml_test PRIVATE lc_ml GTest::gtest_main lc_warnings)
 gtest_discover_tests(ml_test)
