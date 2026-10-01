@@ -15,3 +15,10 @@ add_executable(policy_test
 target_include_directories(policy_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(policy_test PRIVATE lc_policy GTest::gtest_main lc_warnings)
 gtest_discover_tests(policy_test)
+
+add_executable(sim_test
+  sim/cache_test.cpp
+  sim/simulator_test.cpp)
+target_include_directories(sim_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(sim_test PRIVATE lc_sim GTest::gtest_main lc_warnings)
+gtest_discover_tests(sim_test)

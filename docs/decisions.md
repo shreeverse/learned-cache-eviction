@@ -56,3 +56,13 @@ runtime supports. Workaround without root: run TSan tests with ASLR disabled for
 
 GoogleTest discovery is set to `PRE_TEST` so the build itself never has to execute a TSan binary.
 (Alternatives: `sudo sysctl vm.mmap_rnd_bits=28`, or a newer compiler whose TSan supports this.)
+
+## D6. Simulator details (M1)
+
+- `Cache` holds a non-owning reference to its policy, so tests can inspect a fake policy directly.
+  The policy must be fresh for every run; `simulate()` rewinds the reader so one reader can be replayed
+  for several cache sizes.
+- `ignore_size` sets every object's size to 1, so the capacity counts objects (libCacheSim's `--ignore-obj-size`).
+  Byte hit rate still uses the real sizes, so it stays meaningful.
+- `Cache` throws `std::logic_error` if a policy evicts a key the cache doesn't hold, rather than
+  silently corrupting the byte count or looping. This guards against bugs in the learned policy (M3/M4).

@@ -16,6 +16,7 @@ include(Warnings)
 
 add_subdirectory(trace)
 add_subdirectory(policy)
+add_subdirectory(sim)
 
 if(LC_BUILD_TESTS)
   enable_testing()
