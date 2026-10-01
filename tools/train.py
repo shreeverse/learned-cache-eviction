@@ -54,13 +54,16 @@ def parse_args():
 
 
 def load(path):
-    dtypes = {"eviction": np.int64, "now": np.int64, "key": np.uint64, "next_distance": np.int64}
-    dtypes.update({f: np.float32 for f in FEATURES})
-    df = pd.read_csv(path, dtype=dtypes)
+    # Lean loading: tens of millions of rows must fit in a few GB. `key` is not needed, columns
+    # are typed up front, and the file is parsed in chunks to limit the parser's peak memory.
+    header = list(pd.read_csv(path, nrows=0).columns)
     expected = ["eviction", "now", "key"] + FEATURES + ["next_distance"]
-    if list(df.columns) != expected:
-        sys.exit(f"unexpected columns:\n  got      {list(df.columns)}\n  expected {expected}")
-    return df
+    if header != expected:
+        sys.exit(f"unexpected columns:\n  got      {header}\n  expected {expected}")
+    dtypes = {"eviction": np.int64, "now": np.int64, "next_distance": np.int64}
+    dtypes.update({f: np.float32 for f in FEATURES})
+    chunks = pd.read_csv(path, usecols=list(dtypes), dtype=dtypes, chunksize=2_000_000)
+    return pd.concat(chunks, ignore_index=True)[["eviction", "now"] + FEATURES + ["next_distance"]]
 
 
 def eviction_accuracy(eviction, true_dist, score):
@@ -111,15 +114,17 @@ def main():
     # on eviction keeps every candidate set whole.
     split = df["eviction"].quantile(1 - args.valid_frac)
     is_train = (df["eviction"] < split).to_numpy()
-    X = df[FEATURES].copy()
+    X = df[FEATURES].to_numpy(np.float32)
     for f in args.ignore_features:
-        X[f] = np.nan  # all-missing: LightGBM can't split on it
+        X[:, FEATURES.index(f)] = np.nan  # all-missing: LightGBM can't split on it
+    v = df.loc[~is_train, ["eviction", "age"]]  # all that validation metrics need from df
+    df = df[["eviction"]]  # free the feature columns
     group = {}
     if args.objective == "lambdarank":
         # Rows of one eviction are contiguous; LightGBM wants each query's size, in order.
         group = {"train": df["eviction"][is_train].value_counts(sort=False).sort_index().to_numpy(),
                  "valid": df["eviction"][~is_train].value_counts(sort=False).sort_index().to_numpy()}
-    train = lgb.Dataset(X[is_train], y[is_train], feature_name=FEATURES, free_raw_data=False,
+    train = lgb.Dataset(X[is_train], y[is_train], feature_name=FEATURES, free_raw_data=True,
                         group=group.get("train"))
     valid = lgb.Dataset(X[~is_train], y[~is_train], reference=train, group=group.get("valid"))
 
@@ -143,7 +148,6 @@ def main():
 
     pred = booster.predict(X[~is_train])
     y_valid = y[~is_train]
-    v = df[~is_train]
     ev = v["eviction"].to_numpy()
     d_valid = dist[~is_train]
     print(f"validation: {(~is_train).sum():,} rows, {v['eviction'].nunique():,} evictions")
