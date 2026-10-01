@@ -152,6 +152,20 @@ TEST(LearnedPolicy, EvictionAndRemovalDropFeatureHistory) {
   EXPECT_FLOAT_EQ(row[FT::kCount], 1.0F);
 }
 
+TEST(LearnedPolicy, MemoryWindowKeepsHistoryOfEvictedKeys) {
+  auto f = make(table({{1, 10.0}}), {.sample_size = 64, .seed = 1, .history = 8});
+  for (const Key k : std::initializer_list<Key>{1, 2}) f.policy->on_insert(test::req(k));
+  f.policy->on_hit(test::req(1));
+  EXPECT_EQ(f.policy->evict(), 1U);
+  EXPECT_TRUE(f.policy->tracker().remembers(1));
+
+  f.policy->on_insert(test::req(1));  // re-inserted: continues with count 3
+  std::array<float, FT::kNumFeatures> row{};
+  f.policy->tracker().write_features(1, row);
+  EXPECT_FLOAT_EQ(row[FT::kCount], 3.0F);
+  EXPECT_EQ(f.policy->evict(), 1U);  // still the only key the table scores high
+}
+
 TEST(LearnedPolicy, SameSeedSameEvictions) {
   const auto run = [](std::uint64_t seed) {
     LearnedPolicy p(std::make_unique<RandomPredictor>(seed), "r", {.sample_size = 8, .seed = seed});

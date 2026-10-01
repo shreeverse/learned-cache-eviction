@@ -57,6 +57,10 @@ int run(int argc, char** argv) {
                  "Candidates per eviction for sampled policies (oracle-sampled, random-sampled)")
       ->capture_default_str()
       ->check(CLI::PositiveNumber);
+  app.add_option("--history", config.history,
+                 "Evicted keys whose feature history is kept (memory window); a model must be "
+                 "run with the value its training data was exported with")
+      ->capture_default_str();
   app.add_option("--seed", config.seed, "Seed for sampled policies")->capture_default_str();
   app.add_option("--model", config.model_path, "LightGBM model for the 'learned' policy")
       ->check(CLI::ExistingFile);

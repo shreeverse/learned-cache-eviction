@@ -16,7 +16,8 @@
 namespace lcache {
 
 std::unique_ptr<EvictionPolicy> make_policy(std::string_view name, const PolicyConfig& config) {
-  const LearnedOptions sampled{.sample_size = config.sample_size, .seed = config.seed};
+  const LearnedOptions sampled{
+      .sample_size = config.sample_size, .seed = config.seed, .history = config.history};
   if (name == "lru") return std::make_unique<LruPolicy>();
   if (name == "lfu") return std::make_unique<LfuPolicy>();
   if (name == "arc") return std::make_unique<ArcPolicy>(config.capacity_bytes);

@@ -19,6 +19,9 @@ struct LearnedOptions {
   // Candidates scored per eviction. If at most this many keys are cached, all of them are.
   std::uint32_t sample_size = 64;
   std::uint64_t seed = 1;  // for candidate sampling; runs are deterministic for a given seed
+  // Evicted keys whose feature history is kept (FeatureTracker memory window, decisions D17).
+  // A model must be evaluated with the setting its training data was exported with.
+  std::size_t history = 0;
 };
 
 // Learned eviction in the style of Learning Relaxed Belady (docs/m3-design.md section 3): on

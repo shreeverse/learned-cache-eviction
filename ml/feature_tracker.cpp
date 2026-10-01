@@ -29,7 +29,12 @@ constexpr std::array<std::string_view, FeatureTracker::kNumFeatures> kNames{
 void FeatureTracker::on_access(Key k, std::uint32_t size) {
   const std::uint64_t t = accesses_++;
   const auto [it, inserted] = history_.try_emplace(k);
-  KeyHistory& h = it->second;
+  Entry& e = it->second;
+  KeyHistory& h = e.h;
+  if (e.ghost) {  // back from the memory window: continue its history
+    ghosts_.erase(e.ghost_pos);
+    e.ghost = false;
+  }
 
   if (inserted) {
     h.last_vtime = t;
@@ -53,7 +58,7 @@ void FeatureTracker::on_access(Key k, std::uint32_t size) {
 
 void FeatureTracker::write_features(Key k, std::span<float> out) const {
   assert(out.size() == kNumFeatures);
-  const KeyHistory& h = history_.at(k);
+  const KeyHistory& h = history_.at(k).h;
   const std::uint64_t age = now() - h.last_vtime;
 
   out[kLogSize] =
@@ -72,6 +77,31 @@ void FeatureTracker::write_features(Key k, std::span<float> out) const {
   for (std::size_t i = 0; i < kNumEdcs; ++i) {
     out[kEdc0 + i] = static_cast<float>(h.edc[i] * decay(age, kEdcHalfLives[i]));
   }
+}
+
+void FeatureTracker::forget(Key k) {
+  const auto it = history_.find(k);
+  if (it == history_.end() || it->second.ghost) return;
+  if (history_capacity_ == 0) {
+    history_.erase(it);
+    return;
+  }
+  it->second.ghost = true;
+  it->second.ghost_pos = ghosts_.insert(ghosts_.end(), k);
+  if (ghosts_.size() > history_capacity_) {
+    history_.erase(ghosts_.front());
+    ghosts_.pop_front();
+  }
+}
+
+bool FeatureTracker::contains(Key k) const {
+  const auto it = history_.find(k);
+  return it != history_.end() && !it->second.ghost;
+}
+
+bool FeatureTracker::remembers(Key k) const {
+  const auto it = history_.find(k);
+  return it != history_.end() && it->second.ghost;
 }
 
 std::span<const std::string_view, FeatureTracker::kNumFeatures> FeatureTracker::feature_names() {

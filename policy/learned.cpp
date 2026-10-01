@@ -23,6 +23,7 @@ LearnedPolicy::LearnedPolicy(std::unique_ptr<Predictor> predictor, std::string n
     : predictor_(std::move(predictor)),
       name_(std::move(name)),
       options_(options),
+      tracker_(options.history),
       rng_(options.seed) {
   if (!predictor_) throw std::invalid_argument("LearnedPolicy: predictor is null");
   if (options_.sample_size == 0) throw std::invalid_argument("LearnedPolicy: sample_size is 0");

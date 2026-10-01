@@ -164,3 +164,27 @@ C++ inference both pin **4.5.0** so the trainer and the predictor are the same c
 builds from the 4.5.0 Python sdist (1.7 MB, includes the C++ sources and vendored Eigen/fmt) rather
 than the 175 MB "complete source" release asset. **Rejected:** upgrading CMake through pip, which
 would make every build depend on a venv.
+
+## D17. Memory window: keep history for recently evicted keys (M3; revises D13)
+
+**Why D13 was reversed (measured, docs/m3-results.md "Diagnosis"):** with history dropped on
+eviction, 83.5% of training candidates had a shorter feature history than the trace shows, and
+92.1% of candidates with no gap history had been requested before. The features were mostly
+describing "time since the last insert".
+
+**Decision.** `FeatureTracker(history_capacity)` keeps the history of the N most recently
+evicted keys ("ghosts"); the oldest is dropped first, and a key that comes back continues its
+history (the time it spent evicted counts as a gap). `--history N` in `cachesim` and
+`lcache-export`; 0 (the default) is D13's behavior.
+
+**Rejected:** LRB's time-based window (drop history older than W requests). A count bound gives a
+hard memory bound, which matters for a server (M5); for a steady request mix the two are roughly
+equivalent.
+
+**Cost and fairness caveat.** Each ghost costs an `unordered_map` node plus a `std::list` node,
+on the order of 100–150 bytes. Like W-TinyLFU's sketch and ARC's ghost lists, this metadata is
+not charged to the cache capacity. With Twitter's ~145-byte objects, a large window can use more
+memory than a 1 MiB cache holds, which the results must say.
+
+**Train/serve consistency.** A model must be run with the `--history` value its training data
+was exported with; nothing checks this yet.

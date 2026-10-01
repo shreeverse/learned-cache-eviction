@@ -55,6 +55,10 @@ int run(int argc, char** argv) {
   app.add_option("--sample-size", options.sample_size, "Candidates per eviction")
       ->capture_default_str()
       ->check(CLI::PositiveNumber);
+  app.add_option("--history", options.history,
+                 "Evicted keys whose feature history is kept (memory window); a model must be "
+                 "run with the value its training data was exported with")
+      ->capture_default_str();
   app.add_option("--seed", options.seed, "Seed for candidate sampling")->capture_default_str();
   app.add_option("--every", every, "Record the candidates of every N-th eviction")
       ->capture_default_str()

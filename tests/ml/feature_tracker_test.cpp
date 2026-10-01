@@ -138,6 +138,69 @@ TEST(FeatureTracker, ForgetDropsHistory) {
   EXPECT_TRUE(std::isnan(f[FT::kDelta0]));
 }
 
+// ---- Memory window (history kept for forgotten keys) ------------------------------------------
+
+TEST(FeatureTracker, ForgottenKeyContinuesItsHistoryWhenItComesBack) {
+  FT ft(4);
+  ft.on_access(1, 1);  // t = 0
+  ft.on_access(1, 1);  // t = 1, gap 1
+  ft.forget(1);
+  EXPECT_FALSE(ft.contains(1));
+  EXPECT_TRUE(ft.remembers(1));
+  EXPECT_EQ(ft.size(), 0U);
+  EXPECT_EQ(ft.ghost_count(), 1U);
+
+  tick(ft, 5);         // t = 2..6
+  ft.on_access(1, 1);  // t = 7, gap 6 (the time it spent evicted counts)
+  EXPECT_TRUE(ft.contains(1));
+  EXPECT_FALSE(ft.remembers(1));
+  EXPECT_EQ(ft.ghost_count(), 0U);
+  const Row f = features(ft, 1);
+  EXPECT_FLOAT_EQ(f[FT::kCount], 3.0F);
+  EXPECT_FLOAT_EQ(f[FT::kDelta0 + 0], 6.0F);
+  EXPECT_FLOAT_EQ(f[FT::kDelta0 + 1], 1.0F);
+}
+
+TEST(FeatureTracker, OldestForgottenKeyIsDroppedFirst) {
+  FT ft(2);
+  for (const Key k : {Key{1}, Key{2}, Key{3}}) ft.on_access(k, 1);
+  ft.forget(1);
+  ft.forget(2);
+  ft.forget(3);  // over capacity: 1 goes
+  EXPECT_FALSE(ft.remembers(1));
+  EXPECT_TRUE(ft.remembers(2));
+  EXPECT_TRUE(ft.remembers(3));
+  EXPECT_EQ(ft.ghost_count(), 2U);
+
+  ft.on_access(1, 1);  // starts over
+  EXPECT_FLOAT_EQ(features(ft, 1)[FT::kCount], 1.0F);
+}
+
+TEST(FeatureTracker, ComingBackLeavesTheWindowAndRejoinsAtTheEnd) {
+  FT ft(2);
+  for (const Key k : {Key{1}, Key{2}, Key{3}}) ft.on_access(k, 1);
+  ft.forget(1);
+  ft.on_access(1, 1);  // tracked again: no longer counts toward the window
+  ft.forget(2);
+  ft.forget(3);
+  EXPECT_TRUE(ft.contains(1));
+  EXPECT_EQ(ft.ghost_count(), 2U);
+  ft.forget(1);  // now the newest ghost; the oldest (2) is dropped
+  EXPECT_FALSE(ft.remembers(2));
+  EXPECT_TRUE(ft.remembers(3));
+  EXPECT_TRUE(ft.remembers(1));
+}
+
+TEST(FeatureTracker, ForgetIsIdempotentAndIgnoresUnknownKeys) {
+  FT ft(4);
+  ft.on_access(1, 1);
+  ft.forget(1);
+  ft.forget(1);   // already a ghost
+  ft.forget(42);  // unknown
+  EXPECT_EQ(ft.ghost_count(), 1U);
+  EXPECT_EQ(ft.size(), 0U);
+}
+
 TEST(FeatureTracker, UnknownKeyThrows) {
   const FT ft;
   Row row{};
