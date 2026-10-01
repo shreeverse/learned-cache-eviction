@@ -6,9 +6,9 @@
 
 #include "trace/trace_reader.h"
 
-namespace lcache::test {
+namespace lcache {
 
-// In-memory TraceReader for tests.
+// TraceReader over requests held in memory (tests, and traces annotated by annotate_next_access).
 class VectorReader final : public TraceReader {
  public:
   explicit VectorReader(std::vector<Request> reqs) : reqs_(std::move(reqs)) {}
@@ -20,9 +20,11 @@ class VectorReader final : public TraceReader {
   }
   void reset() override { pos_ = 0; }
 
+  const std::vector<Request>& requests() const { return reqs_; }
+
  private:
   std::vector<Request> reqs_;
   std::size_t pos_ = 0;
 };
 
-}  // namespace lcache::test
+}  // namespace lcache

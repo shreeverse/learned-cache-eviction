@@ -1,10 +1,14 @@
 #pragma once
 
 #include <cstdint>
+#include <limits>
 
 namespace lcache {
 
 using Key = std::uint64_t;
+
+// Sentinel for Request::next_vtime: the key is not requested again (in this run).
+inline constexpr std::uint64_t kNever = std::numeric_limits<std::uint64_t>::max();
 
 enum class Op : std::uint8_t { Get, Set, Del };
 
@@ -14,6 +18,9 @@ struct Request {
   Key key = 0;
   std::uint32_t size = 0;  // object size in bytes
   Op op = Op::Get;
+  // Index (0-based, in the replayed stream) of the next request for the same key, or kNever.
+  // Only filled in by annotate_next_access(); readers leave it as kNever.
+  std::uint64_t next_vtime = kNever;
 
   friend bool operator==(const Request&, const Request&) = default;
 };

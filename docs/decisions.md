@@ -66,3 +66,11 @@ GoogleTest discovery is set to `PRE_TEST` so the build itself never has to execu
   Byte hit rate still uses the real sizes, so it stays meaningful.
 - `Cache` throws `std::logic_error` if a policy evicts a key the cache doesn't hold, rather than
   silently corrupting the byte count or looping. This guards against bugs in the learned policy (M3/M4).
+
+## D7. `Request::next_vtime` and the annotation pre-pass (M2; revises D4)
+
+D4 kept next-access information out of `Request`. Belady (M2) and the M3 labels both need it, so
+`Request` now has `next_vtime`, filled by `annotate_next_access()`: load the trace into memory and
+walk it backwards with a last-seen map. The oracleGeneral file's own field is still ignored: its
+indices count the size-0 records we skip, and CSV traces don't have it. Cost: O(N) memory,
+about 24 bytes per request in memory. Very large traces will need sampling.

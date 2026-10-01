@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "policy/lru.h"
-#include "vector_reader.h"
+#include "trace/vector_reader.h"
 
 namespace lcache {
 namespace {
@@ -29,7 +29,7 @@ TEST(SimResult, Rates) {
 // ---- simulate() ---------------------------------------------------------------------------
 
 TEST(Simulate, EmptyTrace) {
-  test::VectorReader reader({});
+  VectorReader reader({});
   LruPolicy lru;
   const auto r = simulate(reader, lru, {.capacity_bytes = 10});
   EXPECT_EQ(r.requests, 0U);
@@ -40,7 +40,7 @@ TEST(Simulate, CountsHitsAndBytes) {
   // Capacity 10 bytes, all objects 4 bytes. LRU order shown oldest -> newest:
   //   1 miss [1]; 2 miss [1,2]; 1 hit [2,1]; 3 miss, 12 > 10 so evict 2 [1,3];
   //   2 miss, evict 1 [3,2]; 3 hit [2,3].  => 2 hits, 8 bytes hit.
-  test::VectorReader reader({req(1, 4), req(2, 4), req(1, 4), req(3, 4), req(2, 4), req(3, 4)});
+  VectorReader reader({req(1, 4), req(2, 4), req(1, 4), req(3, 4), req(2, 4), req(3, 4)});
   LruPolicy lru;
   const auto r = simulate(reader, lru, {.capacity_bytes = 10});
   EXPECT_EQ(r.requests, 6U);
@@ -51,7 +51,7 @@ TEST(Simulate, CountsHitsAndBytes) {
 
 TEST(Simulate, IgnoreSizeMakesCapacityCountObjects) {
   // Objects are far larger than 2 bytes, but with ignore_size the cache holds 2 objects.
-  test::VectorReader reader({req(1, 1000), req(2, 1000), req(1, 1000), req(3, 1000), req(1, 1000)});
+  VectorReader reader({req(1, 1000), req(2, 1000), req(1, 1000), req(3, 1000), req(1, 1000)});
   LruPolicy lru;
   const auto r = simulate(reader, lru, {.capacity_bytes = 2, .ignore_size = true});
   EXPECT_EQ(r.requests, 5U);
@@ -61,7 +61,7 @@ TEST(Simulate, IgnoreSizeMakesCapacityCountObjects) {
 }
 
 TEST(Simulate, MaxRequestsStopsEarly) {
-  test::VectorReader reader({req(1), req(1), req(1), req(1)});
+  VectorReader reader({req(1), req(1), req(1), req(1)});
   LruPolicy lru;
   const auto r = simulate(reader, lru, {.capacity_bytes = 10, .max_requests = 2});
   EXPECT_EQ(r.requests, 2U);
@@ -69,7 +69,7 @@ TEST(Simulate, MaxRequestsStopsEarly) {
 }
 
 TEST(Simulate, RewindsReaderSoItCanBeReplayed) {
-  test::VectorReader reader({req(1), req(2), req(1)});
+  VectorReader reader({req(1), req(2), req(1)});
   LruPolicy first;
   LruPolicy second;
   const auto a = simulate(reader, first, {.capacity_bytes = 1});
