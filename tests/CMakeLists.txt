@@ -12,9 +12,11 @@ target_link_libraries(trace_test PRIVATE lc_trace GTest::gtest_main lc_warnings)
 gtest_discover_tests(trace_test)
 
 add_executable(policy_test
-  policy/lru_test.cpp)
+  policy/lru_test.cpp
+  policy/lfu_test.cpp)
 target_include_directories(policy_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(policy_test PRIVATE lc_policy GTest::gtest_main lc_warnings)
+# lc_sim: differential tests drive policies through the real Cache.
+target_link_libraries(policy_test PRIVATE lc_policy lc_sim GTest::gtest_main lc_warnings)
 gtest_discover_tests(policy_test)
 
 add_executable(sim_test
