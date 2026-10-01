@@ -1,0 +1,8 @@
+# Training and plotting only (CLAUDE.md). Set up with:
+#   python3 -m venv .venv && .venv/bin/pip install -r tools/requirements.txt
+# lightgbm must match the C++ library version in cmake/Deps.cmake (docs/decisions.md D16).
+lightgbm==4.5.0
+numpy==1.26.4
+pandas==2.2.3
+scipy==1.14.1
+matplotlib==3.9.2
