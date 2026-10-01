@@ -83,6 +83,38 @@ const std::string& field(const std::string& path, const Section& s, const std::s
   return it->second;
 }
 
+// Rejects a split this evaluator can't reproduce exactly, or that would index out of range.
+void check_split(const std::string& path, const std::string& where, int feature, int decision,
+                 std::array<int, 2> children, int num_leaves) {
+  if ((decision & kCategoricalMask) != 0) fail(path, where + "categorical split");
+  if (feature < 0 || static_cast<std::size_t>(feature) >= kF) {
+    fail(path, where + "split on an unknown feature");
+  }
+  for (const int c : children) {
+    if (c >= num_leaves - 1 || ~c >= num_leaves) fail(path, where + "child out of range");
+  }
+}
+
+// Steps from the root to the deepest leaf of a tree laid out as in add_tree (splits 0..n-1, then
+// leaves). Returns n + 1 if a path is longer than n splits, i.e. the tree has a cycle.
+template <typename Node>
+std::size_t tree_depth(const Node* tree, std::size_t n) {
+  std::size_t depth = 0;
+  std::vector<std::pair<std::int32_t, std::size_t>> stack{{0, 0}};
+  while (!stack.empty()) {
+    const auto [node, d] = stack.back();
+    stack.pop_back();
+    if (static_cast<std::size_t>(node) >= n) {
+      depth = std::max(depth, d);
+    } else if (d >= n) {
+      return n + 1;
+    } else {
+      for (const std::int32_t c : tree[node].child) stack.emplace_back(c, d + 1);
+    }
+  }
+  return depth;
+}
+
 }  // namespace
 
 TreeEnsemblePredictor::TreeEnsemblePredictor(const std::string& model_path) {
@@ -145,13 +177,7 @@ void TreeEnsemblePredictor::add_tree(const std::string& path, std::size_t index,
   };
   const std::size_t offset = nodes_.size();
   for (std::size_t i = 0; i < n; ++i) {
-    if ((decision[i] & kCategoricalMask) != 0) fail(path, where + "categorical split");
-    if (feature[i] < 0 || static_cast<std::size_t>(feature[i]) >= kF) {
-      fail(path, where + "split on an unknown feature");
-    }
-    for (const int c : {left[i], right[i]}) {
-      if (c >= static_cast<int>(n) || ~c >= num_leaves) fail(path, where + "child out of range");
-    }
+    check_split(path, where, feature[i], decision[i], {left[i], right[i]}, num_leaves);
     // LightGBM's Tree::NumericalDecision, resolved per split for NaN: if NaN is the "missing"
     // value it goes to the default side; otherwise it is treated as 0.0, which then goes to the
     // default side under the "zero" missing type, or is compared with the threshold.
@@ -172,22 +198,8 @@ void TreeEnsemblePredictor::add_tree(const std::string& path, std::size_t index,
     nodes_.push_back(Node{.threshold = leaf_values[i], .child = {self, self}});
   }
 
-  // Depth by walking down from the root (iteratively; a split's children come after it or are
-  // leaves, so this terminates).
-  std::size_t depth = 0;
-  std::vector<std::pair<std::int32_t, std::size_t>> stack{{0, 0}};
-  while (!stack.empty()) {
-    const auto [node, d] = stack.back();
-    stack.pop_back();
-    if (static_cast<std::size_t>(node) >= n) {
-      depth = std::max(depth, d);
-      continue;
-    }
-    if (d > n) fail(path, where + "cycle in the tree");
-    for (const std::int32_t c : nodes_[offset + static_cast<std::size_t>(node)].child) {
-      stack.emplace_back(c, d + 1);
-    }
-  }
+  const std::size_t depth = tree_depth(nodes_.data() + offset, n);
+  if (depth > n) fail(path, where + "cycle in the tree");
   trees_.push_back(Tree{.offset = offset, .depth = depth});
 }
 

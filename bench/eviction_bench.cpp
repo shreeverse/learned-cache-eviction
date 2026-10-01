@@ -14,10 +14,12 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <initializer_list>
 #include <map>
 #include <memory>
 #include <random>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -95,7 +97,7 @@ EvictionPolicy& warmed_policy(const std::string& policy_name, const std::string&
 void evict_cycle(benchmark::State& state, const std::string& policy_name, const std::string& model,
                  const std::string& predictor, std::uint32_t k) {
   EvictionPolicy& policy = warmed_policy(policy_name, model, predictor, k);
-  for (auto _ : state) {
+  for (auto _ : state) {  // NOLINT(clang-analyzer-deadcode.DeadStores): benchmark loop idiom
     Key victim = policy.evict();
     policy.on_insert(Request{.key = victim, .size = 1});
     benchmark::DoNotOptimize(victim);
@@ -109,11 +111,17 @@ void predict_batch(benchmark::State& state, const std::string& model, std::size_
   const std::vector<Key> keys(k, 0);
   std::vector<double> scores(k);
   std::size_t offset = 0;
-  for (auto _ : state) {
+  for (auto _ : state) {  // NOLINT(clang-analyzer-deadcode.DeadStores): benchmark loop idiom
     predictor.predict(keys, std::span(rows).subspan(offset * kF, k * kF), scores);
     benchmark::DoNotOptimize(scores.data());
     offset = (offset + k) % (4096 - k);  // vary the rows between iterations
   }
+}
+
+std::string cat(std::initializer_list<std::string_view> parts) {
+  std::string out;
+  for (const std::string_view p : parts) out += p;
+  return out;
 }
 
 void register_all() {
@@ -123,18 +131,17 @@ void register_all() {
   benchmark::RegisterBenchmark("evict/lru", evict_cycle, "lru", "", "", 64);
   benchmark::RegisterBenchmark("evict/wtinylfu", evict_cycle, "wtinylfu", "", "", 64);
   for (const std::uint32_t k : ks) {
-    const std::string kk = "/k:" + std::to_string(k);
-    benchmark::RegisterBenchmark("evict/random-sampled" + kk, evict_cycle, "random-sampled", "", "",
-                                 k);
+    const std::string kk = cat({"/k:", std::to_string(k)});
+    benchmark::RegisterBenchmark(cat({"evict/random-sampled", kk}), evict_cycle, "random-sampled",
+                                 "", "", k);
     for (const auto& [label, path] : models) {
       for (const char* predictor : {"lightgbm", "compiled"}) {
-        const std::string name = label + "_" + predictor + kk;
-        benchmark::RegisterBenchmark("evict/learned_" + name, evict_cycle, "learned", path,
-                                     predictor, k);
+        benchmark::RegisterBenchmark(cat({"evict/learned_", label, "_", predictor, kk}),
+                                     evict_cycle, "learned", path, predictor, k);
       }
-      benchmark::RegisterBenchmark("predict/" + label + "_lightgbm" + kk,
+      benchmark::RegisterBenchmark(cat({"predict/", label, "_lightgbm", kk}),
                                    predict_batch<LightGbmPredictor>, path, k);
-      benchmark::RegisterBenchmark("predict/" + label + "_compiled" + kk,
+      benchmark::RegisterBenchmark(cat({"predict/", label, "_compiled", kk}),
                                    predict_batch<TreeEnsemblePredictor>, path, k);
     }
   }
