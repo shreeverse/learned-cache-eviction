@@ -3,6 +3,9 @@
 #include <stdexcept>
 
 #include "ml/predictor.h"
+#ifdef LC_HAVE_LIGHTGBM
+#include "ml/lightgbm_predictor.h"
+#endif
 #include "policy/arc.h"
 #include "policy/belady.h"
 #include "policy/learned.h"
@@ -28,11 +31,30 @@ std::unique_ptr<EvictionPolicy> make_policy(std::string_view name, const PolicyC
     return std::make_unique<LearnedPolicy>(std::make_unique<RandomPredictor>(config.seed + 1),
                                            std::string(name), sampled);
   }
+  if (name == "learned") {
+#ifdef LC_HAVE_LIGHTGBM
+    if (config.model_path.empty()) {
+      throw std::invalid_argument("policy 'learned' needs a model file (--model)");
+    }
+    return std::make_unique<LearnedPolicy>(std::make_unique<LightGbmPredictor>(config.model_path),
+                                           std::string(name), sampled);
+#else
+    throw std::invalid_argument("policy 'learned' needs a build with LC_WITH_LIGHTGBM=ON");
+#endif
+  }
   throw std::invalid_argument("unknown policy '" + std::string(name) + "'");
 }
 
 std::vector<std::string> policy_names() {
   return {"lru", "lfu", "arc", "wtinylfu", "belady", "oracle-sampled", "random-sampled"};
+}
+
+bool has_learned_policy() {
+#ifdef LC_HAVE_LIGHTGBM
+  return true;
+#else
+  return false;
+#endif
 }
 
 }  // namespace lcache

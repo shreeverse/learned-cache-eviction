@@ -37,7 +37,9 @@ int run(int argc, char** argv) {
   app.add_option("-t,--trace", trace_path, "Trace file")->required()->check(CLI::ExistingFile);
   app.add_option("-f,--format", format, "oracle_general | csv | auto (by extension)")
       ->capture_default_str();
-  app.add_option("-p,--policy", policies, "Policies, comma-separated")
+  app.add_option("-p,--policy", policies,
+                 "Policies, comma-separated: lru, lfu, arc, wtinylfu, belady, oracle-sampled, "
+                 "random-sampled, learned (needs --model)")
       ->delimiter(',')
       ->capture_default_str();
   app.add_option("-c,--cache-size", size_args,
@@ -56,6 +58,8 @@ int run(int argc, char** argv) {
       ->capture_default_str()
       ->check(CLI::PositiveNumber);
   app.add_option("--seed", config.seed, "Seed for sampled policies")->capture_default_str();
+  app.add_option("--model", config.model_path, "LightGBM model for the 'learned' policy")
+      ->check(CLI::ExistingFile);
   app.add_option("-o,--out", out_path, "Write CSV here instead of stdout");
 
   CLI11_PARSE(app, argc, argv);

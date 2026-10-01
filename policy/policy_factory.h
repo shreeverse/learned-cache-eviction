@@ -14,6 +14,8 @@ namespace lcache {
 struct PolicyConfig {
   // Cache capacity; ARC and W-TinyLFU size their internal segments from it.
   std::uint64_t capacity_bytes = 0;
+  // "learned": the LightGBM model file written by tools/train.py.
+  std::string model_path{};
   // Sampled policies (oracle-sampled, random-sampled, learned): candidates per eviction, and the
   // seed for sampling and random scores.
   std::uint32_t sample_size = 64;
@@ -30,7 +32,10 @@ inline std::unique_ptr<EvictionPolicy> make_policy(std::string_view name,
   return make_policy(name, PolicyConfig{.capacity_bytes = capacity_bytes});
 }
 
-// Names accepted by make_policy, for help text and validation.
+// Names make_policy accepts with a default PolicyConfig. "learned" is not listed: it also needs
+// config.model_path, and exists only when built with LightGBM (has_learned_policy()).
 std::vector<std::string> policy_names();
+
+bool has_learned_policy();
 
 }  // namespace lcache

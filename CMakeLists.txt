@@ -7,6 +7,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(LC_BUILD_TESTS "Build unit tests" ON)
+option(LC_WITH_LIGHTGBM "Build the LightGBM predictor (the 'learned' policy)" ON)
 option(LC_WARNINGS_AS_ERRORS "Treat compiler warnings as errors (on in CI)" OFF)
 set(LC_SANITIZER "" CACHE STRING "Sanitizers to enable: '', 'address,undefined', or 'thread'")
 

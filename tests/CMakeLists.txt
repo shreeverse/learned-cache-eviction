@@ -51,3 +51,12 @@ add_executable(ml_test
 target_include_directories(ml_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(ml_test PRIVATE lc_ml GTest::gtest_main lc_warnings)
 gtest_discover_tests(ml_test)
+
+if(LC_WITH_LIGHTGBM)
+  add_executable(lightgbm_test
+    ml/lightgbm_predictor_test.cpp)
+  target_include_directories(lightgbm_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+  target_compile_definitions(lightgbm_test PRIVATE LC_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data")
+  target_link_libraries(lightgbm_test PRIVATE lc_ml lc_policy lc_sim GTest::gtest_main lc_warnings)
+  gtest_discover_tests(lightgbm_test)
+endif()
