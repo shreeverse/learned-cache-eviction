@@ -72,24 +72,33 @@ LightGbmPredictor::LightGbmPredictor(const std::string& model_path) {
     throw std::runtime_error("model '" + model_path + "' has features [" + join(names) +
                              "], but FeatureTracker computes [" + join(expected) + "]");
   }
+
+  FastConfigHandle config = nullptr;
+  check(LGBM_BoosterPredictForMatSingleRowFastInit(
+            booster, C_API_PREDICT_NORMAL, /*start_iteration=*/0, /*num_iteration=*/-1,
+            C_API_DTYPE_FLOAT32, static_cast<std::int32_t>(kF), kPredictParams, &config),
+        "LGBM_BoosterPredictForMatSingleRowFastInit");
+  fast_config_.reset(config);
 }
 
 void LightGbmPredictor::BoosterDeleter::operator()(void* booster) const {
   LGBM_BoosterFree(booster);
 }
 
+void LightGbmPredictor::FastConfigDeleter::operator()(void* config) const {
+  LGBM_FastConfigFree(config);
+}
+
 void LightGbmPredictor::predict(std::span<const Key> keys, std::span<const float> features,
                                 std::span<double> scores) {
   assert(features.size() == keys.size() * kF && scores.size() == keys.size());
-  if (keys.empty()) return;
-  std::int64_t written = 0;
-  check(LGBM_BoosterPredictForMat(booster_.get(), features.data(), C_API_DTYPE_FLOAT32,
-                                  static_cast<std::int32_t>(keys.size()),
-                                  static_cast<std::int32_t>(kF), /*is_row_major=*/1,
-                                  C_API_PREDICT_NORMAL, /*start_iteration=*/0,
-                                  /*num_iteration=*/-1, kPredictParams, &written, scores.data()),
-        "LGBM_BoosterPredictForMat");
-  assert(written == static_cast<std::int64_t>(keys.size()));
+  for (std::size_t i = 0; i < keys.size(); ++i) {
+    std::int64_t written = 0;
+    check(LGBM_BoosterPredictForMatSingleRowFast(fast_config_.get(), features.data() + i * kF,
+                                                 &written, &scores[i]),
+          "LGBM_BoosterPredictForMatSingleRowFast");
+    assert(written == 1);
+  }
 }
 
 }  // namespace lcache
