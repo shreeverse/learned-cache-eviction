@@ -47,8 +47,10 @@ gtest_discover_tests(sketch_test)
 
 add_executable(ml_test
   ml/feature_tracker_test.cpp
-  ml/predictor_test.cpp)
+  ml/predictor_test.cpp
+  ml/tree_ensemble_test.cpp)
 target_include_directories(ml_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_definitions(ml_test PRIVATE LC_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data")
 target_link_libraries(ml_test PRIVATE lc_ml GTest::gtest_main lc_warnings)
 gtest_discover_tests(ml_test)
 
@@ -56,7 +58,8 @@ if(LC_WITH_LIGHTGBM)
   add_executable(lightgbm_test
     ml/lightgbm_predictor_test.cpp)
   target_include_directories(lightgbm_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-  target_compile_definitions(lightgbm_test PRIVATE LC_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data")
+  target_compile_definitions(lightgbm_test PRIVATE LC_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data"
+                                               LC_MODELS_DIR="${PROJECT_SOURCE_DIR}/models")
   target_link_libraries(lightgbm_test PRIVATE lc_ml lc_policy lc_sim GTest::gtest_main lc_warnings)
   gtest_discover_tests(lightgbm_test)
 endif()

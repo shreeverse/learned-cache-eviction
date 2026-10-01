@@ -2,15 +2,20 @@
 
 #include <gtest/gtest.h>
 
+#include <array>
 #include <cstddef>
+#include <cstdint>
 #include <fstream>
+#include <limits>
 #include <memory>
+#include <random>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 #include <vector>
 
 #include "ml/feature_tracker.h"
+#include "ml/tree_ensemble.h"
 #include "policy/policy_factory.h"
 #include "reference/workloads.h"
 #include "sim/simulator.h"
@@ -109,21 +114,72 @@ TEST(LightGbmPredictor, FeatureNameMismatchThrows) {
   }
 }
 
+// The compiled evaluator (TreeEnsemblePredictor) must give bit-identical scores to LightGBM on
+// the real models, so every hit rate measured with LightGBM still holds.
+TEST(LightGbmPredictor, CompiledTreesMatchLightGbmBitForBitOnTheRealModels) {
+  std::mt19937_64 rng(3);
+  std::vector<float> rows;
+  constexpr std::size_t kRows = 20'000;
+  for (std::size_t i = 0; i < kRows; ++i) {
+    std::array<float, kF> r{};
+    r[FeatureTracker::kLogSize] = std::uniform_real_distribution<float>(0, 18)(rng);
+    r[FeatureTracker::kAge] = static_cast<float>(rng() % 2'000'000);
+    const auto history = rng() % 10;  // 0..9 accesses' worth of gaps
+    for (std::size_t j = 0; j < FeatureTracker::kNumDeltas; ++j) {
+      r[FeatureTracker::kDelta0 + j] = j < history ? static_cast<float>(1 + rng() % 60'000)
+                                                   : std::numeric_limits<float>::quiet_NaN();
+    }
+    r[FeatureTracker::kCount] = static_cast<float>(1 + history);
+    for (std::size_t j = 0; j < FeatureTracker::kNumEdcs; ++j) {
+      r[FeatureTracker::kEdc0 + j] = std::uniform_real_distribution<float>(0, 8)(rng);
+    }
+    if (i % 7 == 0) r[rng() % kF] = 0.0F;  // exact zeros hit the "missing = zero" rule
+    rows.insert(rows.end(), r.begin(), r.end());
+  }
+  const std::vector<Key> keys(kRows, 0);
+  for (const char* name : {"twitter26_1MiB_h10k_32x31.txt", "twitter26_1MiB_h10k_128x63.txt"}) {
+    const std::string path = std::string(LC_MODELS_DIR) + "/" + name;
+    LightGbmPredictor lgbm(path);
+    TreeEnsemblePredictor compiled(path);
+    std::vector<double> want(kRows);
+    std::vector<double> got(kRows);
+    lgbm.predict(keys, rows, want);
+    compiled.predict(keys, rows, got);
+    std::size_t mismatches = 0;
+    for (std::size_t i = 0; i < kRows; ++i) {
+      if (want[i] != got[i]) ++mismatches;
+    }
+    EXPECT_EQ(mismatches, 0U) << name;
+  }
+}
+
 TEST(LightGbmPredictor, LearnedPolicyThroughTheFactory) {
-  EXPECT_TRUE(has_learned_policy());
+  EXPECT_TRUE(has_lightgbm());
   EXPECT_THROW(make_policy("learned", 100), std::invalid_argument);  // no model path
 
   const auto keys = test::zipf_keys(5'000, 300, 0.8, 5);
   std::vector<Request> reqs;
   for (const Key k : keys) reqs.push_back(test::req(k));
   VectorReader reader(std::move(reqs));
-  const auto policy =
-      make_policy("learned", PolicyConfig{.capacity_bytes = 50, .model_path = kModel});
-  EXPECT_EQ(policy->name(), "learned");
-  EXPECT_FALSE(policy->needs_next_access());
-  const auto r = simulate(reader, *policy, {.capacity_bytes = 50});
-  EXPECT_EQ(r.requests, 5'000U);
-  EXPECT_GT(r.hits, 0U);
+  // Both predictors give identical scores, so the same hits.
+  std::uint64_t hits[2] = {0, 0};
+  int i = 0;
+  for (const char* predictor : {"compiled", "lightgbm"}) {
+    const auto policy = make_policy(
+        "learned",
+        PolicyConfig{.capacity_bytes = 50, .model_path = kModel, .predictor = predictor});
+    EXPECT_EQ(policy->name(), "learned");
+    EXPECT_FALSE(policy->needs_next_access());
+    const auto r = simulate(reader, *policy, {.capacity_bytes = 50});
+    EXPECT_EQ(r.requests, 5'000U);
+    hits[i++] = r.hits;
+  }
+  EXPECT_GT(hits[0], 0U);
+  EXPECT_EQ(hits[0], hits[1]);
+  EXPECT_THROW(
+      make_policy("learned",
+                  PolicyConfig{.capacity_bytes = 50, .model_path = kModel, .predictor = "nope"}),
+      std::invalid_argument);
 }
 
 }  // namespace

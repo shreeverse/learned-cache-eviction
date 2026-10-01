@@ -64,6 +64,11 @@ int run(int argc, char** argv) {
   app.add_option("--seed", config.seed, "Seed for sampled policies")->capture_default_str();
   app.add_option("--model", config.model_path, "LightGBM model for the 'learned' policy")
       ->check(CLI::ExistingFile);
+  app.add_option("--predictor", config.predictor,
+                 "How 'learned' evaluates the model: compiled (fast, regression models) | "
+                 "lightgbm (the LightGBM library, any model)")
+      ->check(CLI::IsMember({"compiled", "lightgbm"}))
+      ->capture_default_str();
   app.add_option("-o,--out", out_path, "Write CSV here instead of stdout");
 
   CLI11_PARSE(app, argc, argv);

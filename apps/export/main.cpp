@@ -25,6 +25,7 @@
 #endif
 #include "ml/predictor.h"
 #include "ml/recording_predictor.h"
+#include "ml/tree_ensemble.h"
 #include "policy/learned.h"
 #include "sim/simulator.h"
 #include "trace/reader_factory.h"
@@ -43,6 +44,7 @@ int run(int argc, char** argv) {
   std::uint32_t every = 1;
   std::string model_path;
   std::string collector_kind = "lru";
+  std::string predictor_kind = "compiled";
   std::string out_path;
 
   app.add_option("-t,--trace", trace_path, "Trace file")->required()->check(CLI::ExistingFile);
@@ -71,6 +73,10 @@ int run(int argc, char** argv) {
   app.add_option("--model", model_path,
                  "LightGBM model that chooses victims (default: sampled LRU)")
       ->check(CLI::ExistingFile);
+  app.add_option("--predictor", predictor_kind,
+                 "How --model is evaluated: compiled (regression models) | lightgbm (any model)")
+      ->check(CLI::IsMember({"compiled", "lightgbm"}))
+      ->capture_default_str();
   app.add_option("-o,--out", out_path, "Output CSV")->required();
 
   CLI11_PARSE(app, argc, argv);
@@ -84,11 +90,13 @@ int run(int argc, char** argv) {
     chooser = std::make_unique<lcache::AgePredictor>();
   } else if (model_path.empty()) {
     chooser = std::make_unique<lcache::RandomPredictor>(options.seed + 1);
+  } else if (predictor_kind == "compiled") {
+    chooser = std::make_unique<lcache::TreeEnsemblePredictor>(model_path);
   } else {
 #ifdef LC_HAVE_LIGHTGBM
     chooser = std::make_unique<lcache::LightGbmPredictor>(model_path);
 #else
-    throw std::runtime_error("--model needs a build with LC_WITH_LIGHTGBM=ON");
+    throw std::runtime_error("--predictor lightgbm needs a build with LC_WITH_LIGHTGBM=ON");
 #endif
   }
   auto recorder = std::make_unique<lcache::RecordingPredictor>(std::move(chooser), out, every);

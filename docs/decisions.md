@@ -204,3 +204,26 @@ docs/m3-results.md; evaluated once on a test split (7.5M–10M).
   12k/25k, a clipped label, lambdarank (all equal or worse on dev), and 5× more rows (no gain).
 - **Evaluation protocol: train / dev / test by time** (0–5M / 5M–7.5M / 7.5M–10M). Results
   before this change used the whole second half and were used to choose what to try next.
+
+## D19. Our own tree evaluator instead of LightGBM's predictor (M3 step 8)
+
+**Measured problem:** with LightGBM's C API, one eviction (k = 64 candidates) took 121 µs with the
+32-tree model and 595 µs with the 128-tree model (`bench/eviction_bench`), vs 74 ns for LRU.
+
+**Decision.** `TreeEnsemblePredictor` reads LightGBM's text model and evaluates it itself; it is
+the default for `learned` (`--predictor compiled`; `--predictor lightgbm` remains). It
+reproduces LightGBM's numerical decision rules and sums trees in the same order, so scores are
+**bit-identical**: tests compare both on 20,000 rows for both committed models, and a dev-split
+replay gives the same hits (1,522,004) with either predictor. Three steps, each measured on the
+32 × 31 model at k = 64 (predict only):
+1. Flat node array, one walk per row: 83 µs (LightGBM: 116–138 µs).
+2. Leaves as self-loops so each walk takes a fixed number of steps; 8 rows walked through a tree
+   together; NaN direction precomputed per split; 24-byte nodes: 65 µs.
+3. No branches in a step (children indexed by the comparison result, bitwise conditions): 39 µs.
+   Branch mispredictions on tree data were the main cost. 8 lanes beat 4 (57 µs) and 16 (44 µs).
+
+**Rejected:** QuickScorer-style bitvector evaluation and code generation (one C++ function per
+tree). Faster still, but much more code; revisit if M4's time budget needs it.
+
+**Limits:** regression models with numerical splits only; anything else is rejected at load
+(use `--predictor lightgbm`).

@@ -1,8 +1,10 @@
 #include "policy/policy_factory.h"
 
 #include <stdexcept>
+#include <utility>
 
 #include "ml/predictor.h"
+#include "ml/tree_ensemble.h"
 #ifdef LC_HAVE_LIGHTGBM
 #include "ml/lightgbm_predictor.h"
 #endif
@@ -33,15 +35,22 @@ std::unique_ptr<EvictionPolicy> make_policy(std::string_view name, const PolicyC
                                            std::string(name), sampled);
   }
   if (name == "learned") {
-#ifdef LC_HAVE_LIGHTGBM
     if (config.model_path.empty()) {
       throw std::invalid_argument("policy 'learned' needs a model file (--model)");
     }
-    return std::make_unique<LearnedPolicy>(std::make_unique<LightGbmPredictor>(config.model_path),
-                                           std::string(name), sampled);
+    std::unique_ptr<Predictor> predictor;
+    if (config.predictor == "compiled") {
+      predictor = std::make_unique<TreeEnsemblePredictor>(config.model_path);
+    } else if (config.predictor == "lightgbm") {
+#ifdef LC_HAVE_LIGHTGBM
+      predictor = std::make_unique<LightGbmPredictor>(config.model_path);
 #else
-    throw std::invalid_argument("policy 'learned' needs a build with LC_WITH_LIGHTGBM=ON");
+      throw std::invalid_argument("predictor 'lightgbm' needs a build with LC_WITH_LIGHTGBM=ON");
 #endif
+    } else {
+      throw std::invalid_argument("unknown predictor '" + config.predictor + "'");
+    }
+    return std::make_unique<LearnedPolicy>(std::move(predictor), std::string(name), sampled);
   }
   throw std::invalid_argument("unknown policy '" + std::string(name) + "'");
 }
@@ -50,7 +59,7 @@ std::vector<std::string> policy_names() {
   return {"lru", "lfu", "arc", "wtinylfu", "belady", "oracle-sampled", "random-sampled"};
 }
 
-bool has_learned_policy() {
+bool has_lightgbm() {
 #ifdef LC_HAVE_LIGHTGBM
   return true;
 #else
