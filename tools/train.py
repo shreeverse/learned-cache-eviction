@@ -38,7 +38,10 @@ def parse_args():
     p.add_argument("-o", "--out", required=True, help="where to write the LightGBM model (text)")
     p.add_argument("--window", type=int, required=True,
                    help="number of requests the export replayed (its -n); sets the never-again cap")
-    p.add_argument("--objective", choices=["regression", "binary"], default="regression")
+    p.add_argument("--objective", choices=["regression", "binary", "lambdarank"], default="regression")
+    p.add_argument("--clip-distance", type=float,
+                   help="regression: train on log1p(min(distance, this)) to stop far/never-again "
+                        "keys from dominating the squared error")
     p.add_argument("--horizon", type=int, help="binary: label 1 if distance > horizon")
     p.add_argument("--ignore-features", nargs="*", default=[], choices=FEATURES)
     p.add_argument("--valid-frac", type=float, default=0.2)
@@ -94,8 +97,13 @@ def main():
     if args.objective == "binary":
         y = (dist > args.horizon).astype(np.float64)
         print(f"binary label: distance > {args.horizon:,} for {y.mean():.1%} of rows")
+    elif args.objective == "lambdarank":
+        # Graded relevance per candidate set: higher = better victim. log2 buckets of the distance
+        # in units of 1,000 requests, so 0..13 (never-again keys get the top grade).
+        y = np.clip(np.floor(np.log2(np.maximum(dist, 1) / 1000)), 0, 30)
+        print(f"lambdarank grades: {np.bincount(y.astype(int)).tolist()}")
     else:
-        y = np.log1p(dist)
+        y = np.log1p(np.minimum(dist, args.clip_distance) if args.clip_distance else dist)
     print(f"rows {len(df):,}  evictions {df['eviction'].nunique():,}  "
           f"never-again {np.mean(df['next_distance'] < 0):.1%}  (loaded in {time.time() - t0:.1f}s)")
 
@@ -106,8 +114,14 @@ def main():
     X = df[FEATURES].copy()
     for f in args.ignore_features:
         X[f] = np.nan  # all-missing: LightGBM can't split on it
-    train = lgb.Dataset(X[is_train], y[is_train], feature_name=FEATURES, free_raw_data=False)
-    valid = lgb.Dataset(X[~is_train], y[~is_train], reference=train)
+    group = {}
+    if args.objective == "lambdarank":
+        # Rows of one eviction are contiguous; LightGBM wants each query's size, in order.
+        group = {"train": df["eviction"][is_train].value_counts(sort=False).sort_index().to_numpy(),
+                 "valid": df["eviction"][~is_train].value_counts(sort=False).sort_index().to_numpy()}
+    train = lgb.Dataset(X[is_train], y[is_train], feature_name=FEATURES, free_raw_data=False,
+                        group=group.get("train"))
+    valid = lgb.Dataset(X[~is_train], y[~is_train], reference=train, group=group.get("valid"))
 
     params = {
         "objective": args.objective,
@@ -119,6 +133,9 @@ def main():
         "force_row_wise": True,
         "verbosity": -1,
     }
+    if args.objective == "lambdarank":
+        params["lambdarank_truncation_level"] = 1  # only the top choice (the victim) matters
+        params["eval_at"] = [1]
     t0 = time.time()
     booster = lgb.train(params, train, num_boost_round=args.num_trees, valid_sets=[valid],
                         valid_names=["valid"])
@@ -134,7 +151,7 @@ def main():
         rmse = float(np.sqrt(np.mean((pred - y_valid) ** 2)))
         rmse_const = float(np.sqrt(np.mean((y[is_train].mean() - y_valid) ** 2)))
         print(f"  RMSE log1p(distance): model {rmse:.4f}   predict-the-mean {rmse_const:.4f}")
-    else:
+    elif args.objective == "binary":
         acc = float(np.mean((pred > 0.5) == (y_valid > 0.5)))
         print(f"  classification accuracy: model {acc:.2%}   majority class "
               f"{max(y_valid.mean(), 1 - y_valid.mean()):.2%}")
