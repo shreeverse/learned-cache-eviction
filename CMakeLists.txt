@@ -15,6 +15,7 @@ include(Sanitizers)  # must come before any targets (incl. GoogleTest) so everyt
 include(Warnings)
 
 add_subdirectory(trace)
+add_subdirectory(policy)
 
 if(LC_BUILD_TESTS)
   enable_testing()
