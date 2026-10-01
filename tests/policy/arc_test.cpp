@@ -40,7 +40,7 @@ TEST(ArcPolicy, NewKeysEnterT1AndASecondAccessMovesThemToT2) {
 TEST(ArcPolicy, WalkthroughMatchesThePaper) {
   ArcPolicy arc(2);
   Cache cache(arc, 2);
-  const auto expect = [&](std::vector<Key> cached, std::vector<Key> absent, double p,
+  const auto expect = [&](const std::vector<Key>& cached, const std::vector<Key>& absent, double p,
                           std::uint64_t t1, std::uint64_t t2, std::uint64_t b1, std::uint64_t b2) {
     for (Key k : cached) EXPECT_TRUE(cache.contains(k)) << "key " << k;
     for (Key k : absent) EXPECT_FALSE(cache.contains(k)) << "key " << k;

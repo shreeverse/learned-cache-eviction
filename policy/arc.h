@@ -16,9 +16,9 @@ namespace lcache {
 // (seen at least twice); ghost lists B1/B2 remember recently evicted keys and steer p.
 //
 // Mapping onto insert-then-evict (docs/m2-design.md section 2): on_insert does the paper's cases
-// II-IV minus REPLACE; evict() is REPLACE with the newcomer excluded; ghost lists are trimmed after
-// each step so |T1|+|B1| <= c and |T1|+|T2|+|B1|+|B2| <= 2c. For unit sizes this is step-for-step
-// identical to the paper (checked against tests/reference/paper_arc.h).
+// II-IV minus REPLACE; evict() is REPLACE with the newcomer excluded; once the resident lists fit,
+// ghost lists are trimmed so |T1|+|B1| <= c and |T1|+|T2|+|B1|+|B2| <= 2c. For unit sizes this is
+// step-for-step identical to the paper (checked against tests/reference/paper_arc.h).
 //
 // Ghost keys are not "tracked" in the EvictionPolicy sense: on_insert may be called for them.
 // O(1) average per hook (ghost trimming amortised O(1)).
@@ -49,11 +49,12 @@ class ArcPolicy final : public EvictionPolicy {
   };
   using Index = std::unordered_map<Key, Entry>;
 
-  // Moves an indexed key to the MRU end of `to`, keeping byte counts in sync.
-  void move_to(Index::iterator it, ListId to);
-  // Removes an indexed key from its list and from the index.
-  void drop(Index::iterator it);
-  // Drops LRU ghosts until |T1|+|B1| <= c and the total directory is <= 2c.
+  // Moves an entry to the MRU end of `to`, keeping byte counts in sync.
+  void move_to(Entry& e, ListId to);
+  // Removes a key (which must be indexed) from its list and from the index.
+  void drop(Key k);
+  // Once the resident lists fit in c, drops LRU ghosts until |T1|+|B1| <= c and the whole
+  // directory is <= 2c.
   void trim_ghosts();
 
   std::uint64_t c_;

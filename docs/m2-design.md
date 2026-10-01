@@ -80,9 +80,11 @@ Generalized to bytes the way libCacheSim does it: all list sizes, `p` and `c` ar
 - `evict()`: REPLACE(x, p), with x (the current newcomer) excluded from the sizes and from being
   chosen. If `|T1 \ x| > 0` and (`|T1 \ x| > p`, or x came from B2 and `|T1 \ x| == p`), move the LRU of T1
   to the MRU end of B1; otherwise move the LRU of T2 to B2 (falling back to T1 if T2 has nothing but x).
-- **Ghost trimming** runs after every insert or evict: drop the LRU of B1 while `|T1|+|B1| > c`, then
-  the LRU of B2 while `|T1|+|T2|+|B1|+|B2| > 2c`. For unit sizes this gives the same state as the paper's
-  Case IV bookkeeping, just done afterwards instead of before.
+- **Ghost trimming** runs after an insert or evict, but only once the resident lists fit in `c`: drop the LRU
+  of B1 while `|T1|+|B1| > c`, then the LRU of B2 while `|T1|+|T2|+|B1|+|B2| > 2c`. For unit sizes this
+  gives the same state as the paper's Case IV bookkeeping, just done afterwards instead of before.
+  *Found by the differential test:* trimming while the newcomer is still unpaid (resident > c) wrongly
+  dropped a B2 ghost in Case IV-A with |T1| = c, where the paper keeps it.
 
 REPLACE only runs when the cache is actually over capacity, because `Cache` only calls `evict()` then.
 That matches the paper whenever the cache is full, and handles explicit removes gracefully.
