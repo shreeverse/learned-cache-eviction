@@ -95,6 +95,9 @@ bool FallbackPolicy::shadow_access(const Request& r) {
   while (shadow_used_ > capacity_) {
     const Key victim = shadow_.evict();
     const auto it = shadow_sizes_.find(victim);
+    if (it == shadow_sizes_.end()) {  // W-TinyLFU evicting a key it doesn't hold: a bug
+      throw std::logic_error("FallbackPolicy: shadow W-TinyLFU evicted an unknown key");
+    }
     shadow_used_ -= it->second;
     shadow_sizes_.erase(it);
   }
@@ -114,17 +117,19 @@ void FallbackPolicy::record(const Request& r, bool real_hit) {
   ring_pos_ = (ring_pos_ + 1) % ring_.size();
   ++stats_.requests;
   ++since_switch_;
-  real_since_ += real_hit ? 1 : 0;
-  shadow_since_ += shadow_hit ? 1 : 0;
 
   if (mode_ == Mode::kLearned) {
+    if (since_switch_ <= options_.grace) return;  // not judged yet
+    real_since_ += real_hit ? 1 : 0;
+    shadow_since_ += shadow_hit ? 1 : 0;
     if (learned_is_behind()) {
       // A retry that fails its first window waits longer next time.
-      const bool failed_first_window = since_switch_ < 2 * options_.window && stats_.retries > 0;
+      const bool failed_first_window =
+          since_switch_ < options_.grace + 2 * options_.window && stats_.retries > 0;
       backoff_ = failed_first_window ? std::min(backoff_ * 2, kMaxBackoff) : 1;
       ++stats_.hit_rate_trips;
       switch_to(Mode::kFallback);
-    } else if (since_switch_ >= 2 * options_.window) {
+    } else if (since_switch_ >= options_.grace + 2 * options_.window) {
       backoff_ = 1;  // survived two windows: the model is fine again
     }
   } else if (since_switch_ >= options_.cooldown * backoff_) {
@@ -134,8 +139,9 @@ void FallbackPolicy::record(const Request& r, bool real_hit) {
 }
 
 bool FallbackPolicy::learned_is_behind() {
-  if (since_switch_ >= options_.window) {
-    // The rolling window now holds only learned-mode requests.
+  const std::uint64_t judged = since_switch_ - options_.grace;  // requests since judging began
+  if (judged >= options_.window) {
+    // The rolling window now holds only judged learned-mode requests.
     const double allowed = options_.margin * static_cast<double>(options_.window);
     return static_cast<double>(stats_.window_real_hits) + allowed <
            static_cast<double>(stats_.window_shadow_hits);
@@ -143,8 +149,8 @@ bool FallbackPolicy::learned_is_behind() {
   // Early check, so a clearly bad model doesn't run for a whole window: the hit difference of two
   // policies over n requests varies by at most about 0.7 * sqrt(n), so a shortfall beyond
   // 3 * sqrt(n) is almost never noise.
-  if (since_switch_ < options_.window / 10) return false;
-  const auto n = static_cast<double>(since_switch_);
+  if (!options_.early_check || judged < options_.window / 10) return false;
+  const auto n = static_cast<double>(judged);
   const double allowed = options_.margin * n + 3.0 * std::sqrt(n);
   const bool behind =
       static_cast<double>(real_since_) + allowed < static_cast<double>(shadow_since_);

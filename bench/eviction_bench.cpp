@@ -5,7 +5,8 @@
 // Every policy is first warmed by replaying the first 300k requests of the Twitter trace
 // (tools/fetch_traces.sh) into a 1 MiB cache, so caches are full and feature histories are
 // realistic. Then:
-//   evict/<policy>/k:<k>              one evict() plus re-inserting the victim (cache stays full)
+//   evict/<policy>/k:<k>              one evict() plus re-inserting the victim (cache stays full);
+//                                     guarded = the M4 FallbackPolicy around learned, no budget
 //   predict/<model>_<predictor>/k:<k> one Predictor::predict() call on k real feature rows
 // <predictor> is lightgbm (the library) or compiled (TreeEnsemblePredictor; identical scores).
 // The lru and random-sampled rows show what the re-insert and sampling cost without a model.
@@ -140,6 +141,9 @@ void register_all() {
         benchmark::RegisterBenchmark(cat({"evict/learned_", label, "_", predictor, kk}),
                                      evict_cycle, "learned", path, predictor, k);
       }
+      // The M4 wrapper (no time budget): learned + W-TinyLFU tracking + shadow W-TinyLFU.
+      benchmark::RegisterBenchmark(cat({"evict/guarded_", label, "_compiled", kk}), evict_cycle,
+                                   "guarded", path, "compiled", k);
       benchmark::RegisterBenchmark(cat({"predict/", label, "_lightgbm", kk}),
                                    predict_batch<LightGbmPredictor>, path, k);
       benchmark::RegisterBenchmark(cat({"predict/", label, "_compiled", kk}),

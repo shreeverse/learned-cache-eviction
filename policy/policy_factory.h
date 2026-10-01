@@ -32,6 +32,8 @@ struct PolicyConfig {
   // hit-rate comparison, cooldown before retrying, and the per-eviction time budget.
   std::uint64_t guard_window = 10'000;
   double guard_margin = 0.0;
+  std::uint64_t guard_grace = 30'000;
+  bool guard_early_check = true;
   std::uint64_t guard_cooldown = 50'000;
   std::uint64_t budget_ns = 0;  // 0 = no budget
   std::uint32_t max_breaches = 1;

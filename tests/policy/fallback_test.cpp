@@ -80,7 +80,7 @@ TEST(FallbackPolicy, BadModelFallsBackAndRecoversMostOfWTinyLfu) {
   auto bad_alone = learned(std::make_unique<AntiOracle>());
   WTinyLfuPolicy wtinylfu(kCap);
   FallbackPolicy guarded(learned(std::make_unique<AntiOracle>()), kCap,
-                         {.window = 2'000, .cooldown = 10'000});
+                         {.window = 2'000, .grace = 0, .cooldown = 10'000});
   const auto bad = hits(trace, *bad_alone, kCap);
   const auto reference = hits(trace, wtinylfu, kCap);
   const auto got = hits(trace, guarded, kCap);
@@ -96,7 +96,7 @@ TEST(FallbackPolicy, BadModelFallsBackAndRecoversMostOfWTinyLfu) {
 TEST(FallbackPolicy, ClearlyBadModelTripsBeforeAFullWindow) {
   const auto trace = zipf_trace(20'000, 6);
   FallbackPolicy guarded(learned(std::make_unique<AntiOracle>()), kCap,
-                         {.window = 10'000, .cooldown = 1'000'000});
+                         {.window = 10'000, .grace = 0, .cooldown = 1'000'000});
   hits(trace, guarded, kCap);
   EXPECT_EQ(guarded.stats().hit_rate_trips, 1U);
   EXPECT_EQ(guarded.stats().early_trips, 1U);
@@ -104,12 +104,39 @@ TEST(FallbackPolicy, ClearlyBadModelTripsBeforeAFullWindow) {
   EXPECT_LT(guarded.stats().learned_evictions, 2'000U);
 }
 
+TEST(FallbackPolicy, GracePeriodDelaysJudging) {
+  // The same clearly bad model, but not judged for the first 5,000 requests.
+  const auto trace = zipf_trace(20'000, 6);
+  FallbackPolicy guarded(learned(std::make_unique<AntiOracle>()), kCap,
+                         {.window = 10'000, .grace = 5'000, .cooldown = 1'000'000});
+  VectorReader reader(trace);
+  Cache cache(guarded, kCap);
+  Request r;
+  std::uint64_t n = 0;
+  while (reader.next(r) && n < 5'000) {
+    cache.access(r);
+    ++n;
+  }
+  EXPECT_EQ(guarded.stats().hit_rate_trips, 0U);  // still in grace
+  while (reader.next(r)) cache.access(r);
+  EXPECT_EQ(guarded.stats().hit_rate_trips, 1U);  // judged early once the grace period ended
+}
+
+TEST(FallbackPolicy, WithoutTheEarlyCheckOnlyFullWindowsAreJudged) {
+  const auto trace = zipf_trace(9'000, 6);
+  FallbackPolicy guarded(
+      learned(std::make_unique<AntiOracle>()), kCap,
+      {.window = 10'000, .grace = 0, .early_check = false, .cooldown = 1'000'000});
+  hits(trace, guarded, kCap);
+  EXPECT_EQ(guarded.stats().hit_rate_trips, 0U);  // 9,000 requests: no full window yet
+}
+
 TEST(FallbackPolicy, RetriesAfterCooldownWithBackoff) {
   const auto trace = zipf_trace(200'000, 3);
   constexpr std::uint64_t kWindow = 1'000;
   constexpr std::uint64_t kCooldown = 2'000;
   FallbackPolicy guarded(learned(std::make_unique<AntiOracle>()), kCap,
-                         {.window = kWindow, .cooldown = kCooldown});
+                         {.window = kWindow, .grace = 0, .cooldown = kCooldown});
   hits(trace, guarded, kCap);
   const auto& st = guarded.stats();
   EXPECT_GE(st.retries, 2U);
@@ -158,7 +185,7 @@ TEST(FallbackPolicy, InnerPoliciesStayInSyncWhileFlapping) {
   const auto keys = test::zipf_keys(50'000, 1'500, 0.8, 5);
   for (const Key k : keys) trace.push_back(test::req(k, static_cast<std::uint32_t>(1 + k % 20)));
   FallbackPolicy guarded(learned(std::make_unique<AntiOracle>()), 2'000,
-                         {.window = 100, .cooldown = 100});
+                         {.window = 100, .grace = 0, .cooldown = 100});
   VectorReader reader(trace);
   const auto r = simulate(reader, guarded, {.capacity_bytes = 2'000});
   EXPECT_EQ(r.requests, trace.size());

@@ -71,6 +71,8 @@ std::unique_ptr<EvictionPolicy> make_policy(std::string_view name, const PolicyC
     return std::make_unique<FallbackPolicy>(make_learned(config), config.capacity_bytes,
                                             FallbackOptions{.window = config.guard_window,
                                                             .margin = config.guard_margin,
+                                                            .grace = config.guard_grace,
+                                                            .early_check = config.guard_early_check,
                                                             .cooldown = config.guard_cooldown,
                                                             .budget_ns = config.budget_ns,
                                                             .max_breaches = config.max_breaches,

@@ -73,6 +73,11 @@ int run(int argc, char** argv) {
   app.add_option("--guard-margin", config.guard_margin,
                  "guarded: fall back when behind W-TinyLFU by more than this hit-rate fraction")
       ->capture_default_str();
+  app.add_option("--guard-grace", config.guard_grace,
+                 "guarded: requests after each switch to learned before it is judged")
+      ->capture_default_str();
+  app.add_flag("!--no-early-check", config.guard_early_check,
+               "guarded: judge only full windows (no early 3*sqrt(n) check)");
   app.add_option("--guard-cooldown", config.guard_cooldown,
                  "guarded: requests on W-TinyLFU before retrying the learned policy")
       ->capture_default_str();

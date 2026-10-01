@@ -18,6 +18,12 @@ struct FallbackOptions {
   std::uint64_t window = 10'000;
   // Fall back when real hits < shadow hits - margin * window (0 = any shortfall).
   double margin = 0.0;
+  // Requests after each switch to the learned policy (and at the start) during which it isn't
+  // judged: the cache it inherits was shaped by W-TinyLFU, and reshaping it takes time. 30k was
+  // chosen on dev splits over 0 / 10k (docs/m4-results.md).
+  std::uint64_t grace = 30'000;
+  // Also judge early (from grace + window/10), tripping on a shortfall beyond 3 * sqrt(n).
+  bool early_check = true;
   // Requests to stay on W-TinyLFU before retrying the learned policy. Doubles (up to 16x) each
   // time a retry fails its first window, and resets once a retry survives two windows.
   std::uint64_t cooldown = 50'000;
@@ -32,10 +38,10 @@ struct FallbackOptions {
 // Defensive wrapper around a learned policy (M4, docs/decisions.md D21). Routes each eviction to
 // the learned policy or to W-TinyLFU:
 //
-//   learned --(over the last `window` requests, real hits < shadow W-TinyLFU hits - margin;
-//              or early, from window/10 requests after a switch, if behind by more than
-//              margin * n + 3 * sqrt(n); or `max_breaches` evictions over the time budget)
-//              --> fallback
+//   learned --(after a grace period: over the last `window` requests, real hits < shadow
+//              W-TinyLFU hits - margin; or early, from window/10 requests into judging, if
+//              behind by more than margin * n + 3 * sqrt(n); or, at any time, `max_breaches`
+//              evictions over the time budget) --> fallback
 //   fallback --(after `cooldown` requests)--> learned (retry; judged again after `window`)
 //
 // Both inner policies see every hit and insert, and each is told about the other's victims
@@ -101,8 +107,8 @@ class FallbackPolicy final : public EvictionPolicy {
   Mode mode_ = Mode::kLearned;
   std::uint64_t since_switch_ = 0;  // requests since the last mode switch
   std::uint32_t breaches_ = 0;      // budget breaches since the last switch
-  std::uint64_t real_since_ = 0;    // real hits since the last switch
-  std::uint64_t shadow_since_ = 0;  // shadow hits since the last switch
+  std::uint64_t real_since_ = 0;    // real hits since judging started (after the grace period)
+  std::uint64_t shadow_since_ = 0;  // shadow hits since judging started
   std::uint64_t backoff_ = 1;       // cooldown multiplier
   Stats stats_;
 };
