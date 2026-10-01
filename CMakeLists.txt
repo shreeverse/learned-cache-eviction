@@ -22,6 +22,7 @@ add_subdirectory(ml)
 add_subdirectory(policy)
 add_subdirectory(sim)
 add_subdirectory(apps/cachesim)
+add_subdirectory(apps/export)
 
 if(LC_BUILD_TESTS)
   enable_testing()

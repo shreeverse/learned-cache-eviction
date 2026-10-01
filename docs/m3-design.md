@@ -141,8 +141,9 @@ is scored on the same held-out suffix (D10). `cachesim` gains `--warmup`, `--sam
 
 ## 5. Training data (step 5)
 
-`CollectorPolicy` evicts with the same sampling, choosing the sampled candidate with the oldest
-last access (sampled LRU). At each eviction it writes one row per candidate: the features at that
+The collector is `LearnedPolicy` with a `RecordingPredictor` wrapped around an `AgePredictor`
+(the oldest sampled candidate wins: sampled LRU). It's not a separate policy class, so the
+sampling and feature code is literally the same as at inference. `lcache-export` runs it. At each eviction it writes one row per candidate: the features at that
 moment and the label `next_vtime − now`. The candidate hasn't been accessed since its last access,
 so that access's `next_vtime` is exactly its next access. The rows come from the same distribution
 as inference rows: cached objects sampled at eviction time. Output: CSV with a header of feature
@@ -171,7 +172,7 @@ k = 16/64/128.
 2. `FeatureTracker` with tests.
 3. `Predictor` interface, oracle/random/function predictors, `LearnedPolicy` with tests.
 4. `PolicyConfig`, factory, `--warmup`; first measured numbers: oracle-sampled vs Belady.
-5. `CollectorPolicy`, `lcache-export`, label test.
+5. Collector (`RecordingPredictor` + `AgePredictor`), `lcache-export`, label test.
 6. Python venv, `train.py`, first model.
 7. LightGBM dependency, `LightGbmPredictor`, model-loading tests with a committed tiny model.
 8. Latency benchmark.

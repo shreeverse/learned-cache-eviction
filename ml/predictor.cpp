@@ -24,6 +24,14 @@ void RandomPredictor::predict([[maybe_unused]] std::span<const Key> keys,
   for (double& s : scores) s = dist(rng_);
 }
 
+void AgePredictor::predict([[maybe_unused]] std::span<const Key> keys,
+                           std::span<const float> features, std::span<double> scores) {
+  constexpr std::size_t kF = FeatureTracker::kNumFeatures;
+  assert(features.size() == keys.size() * kF && scores.size() == keys.size());
+  for (std::size_t i = 0; i < scores.size(); ++i)
+    scores[i] = features[i * kF + FeatureTracker::kAge];
+}
+
 void FunctionPredictor::predict(std::span<const Key> keys, std::span<const float> features,
                                 std::span<double> scores) {
   constexpr std::size_t kF = FeatureTracker::kNumFeatures;

@@ -53,6 +53,18 @@ TEST(RandomPredictor, InUnitIntervalAndDeterministic) {
   }
 }
 
+TEST(AgePredictor, ScoresAreTheAgeColumn) {
+  AgePredictor p;
+  const std::vector<Key> keys{4, 9};
+  std::vector<float> features(2 * kF, 0.0F);
+  features[FeatureTracker::kAge] = 3.0F;
+  features[kF + FeatureTracker::kAge] = 17.0F;
+  std::vector<double> scores(2);
+  p.predict(keys, features, scores);
+  EXPECT_DOUBLE_EQ(scores[0], 3.0);
+  EXPECT_DOUBLE_EQ(scores[1], 17.0);
+}
+
 TEST(FunctionPredictor, PassesEachKeyWithItsOwnRow) {
   FunctionPredictor p([](Key k, std::span<const float> row) {
     EXPECT_EQ(row.size(), kF);

@@ -60,6 +60,14 @@ class RandomPredictor final : public Predictor {
   std::mt19937_64 rng_;
 };
 
+// Scores by age, so the least recently used candidate is evicted: sampled LRU. The policy the
+// training-data collector runs (docs/m3-design.md section 5).
+class AgePredictor final : public Predictor {
+ public:
+  void predict(std::span<const Key> keys, std::span<const float> features,
+               std::span<double> scores) override;
+};
+
 // Scores each row with a function of (key, feature row). For tests and deliberately bad models.
 class FunctionPredictor final : public Predictor {
  public:
