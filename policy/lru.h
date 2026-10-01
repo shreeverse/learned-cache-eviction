@@ -1,6 +1,8 @@
 #pragma once
 
+#include <list>
 #include <string_view>
+#include <unordered_map>
 
 #include "policy/eviction_policy.h"
 
@@ -20,7 +22,11 @@ class LruPolicy final : public EvictionPolicy {
   std::string_view name() const override { return "lru"; }
 
  private:
-  // TODO(shree): data members.
+  // Recency order: front = most recently used, back = least recently used (next victim).
+  std::list<Key> order_;
+  // Key -> its node in order_, so a hit or remove can find the node in O(1) instead of scanning.
+  // std::list iterators stay valid when other nodes are inserted, erased or spliced.
+  std::unordered_map<Key, std::list<Key>::iterator> index_;
 };
 
 }  // namespace lcache
