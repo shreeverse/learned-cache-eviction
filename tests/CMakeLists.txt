@@ -18,8 +18,10 @@ gtest_discover_tests(policy_test)
 
 add_executable(sim_test
   sim/cache_test.cpp
-  sim/simulator_test.cpp)
+  sim/simulator_test.cpp
+  sim/libcachesim_golden_test.cpp)
 target_include_directories(sim_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_definitions(sim_test PRIVATE LC_DATA_DIR="${PROJECT_SOURCE_DIR}/data")
 target_link_libraries(sim_test PRIVATE lc_sim GTest::gtest_main lc_warnings)
 gtest_discover_tests(sim_test)
 
