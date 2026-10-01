@@ -279,3 +279,21 @@ half-lives too (not requested; can be tested the same way).
   (cheaper per breach, but more code inside the hot path).
 - With a time budget, results depend on machine speed and load; without one they are
   deterministic.
+
+**D20 outcome (docs/m4-results.md, section 1).** Chosen on dev: **window 4 × cached objects,
+normalized features ("r4n")**, the best average over six trace/size configurations (+1.12 pp per
+configuration). On test it helps where the pipeline was weakest on cloudPhysicsIO (+5.89 pp at
+256 MiB) but loses 0.9–2.6 pp elsewhere; it does not fix Twitter 512 KiB, where the model is weak
+even offline. Not a general fix: the fallback (D21) handles the remaining losses.
+
+**D21 additions (docs/m4-results.md, section 2).**
+- **Grace period after each switch to the learned policy (default 30k requests).** Without it the
+  guard tripped 38–43 times on Twitter 1 MiB, where the model wins, because the cache inherited
+  from W-TinyLFU must be reshaped first. Chosen on dev over 0 and 10k by total shortfall vs the
+  better of the two policies.
+- **Budget breaches counted in a window of the last 1,000 learned evictions** (`--breach-window`),
+  not since the last switch: at a 0.03–0.05% jitter rate, a never-decaying count trips
+  eventually whatever the threshold. The default remains "trip on the first breach".
+- **Open problem:** the learned policy does badly on a W-TinyLFU-shaped cache (never in its
+  training data), so retries can be costly (cloudPhysicsIO 256 MiB test: guarded 16.69% vs 29.26%
+  learned alone). Candidate fix: training data recorded from W-TinyLFU-shaped caches.
