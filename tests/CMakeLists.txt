@@ -14,7 +14,8 @@ gtest_discover_tests(trace_test)
 add_executable(policy_test
   policy/lru_test.cpp
   policy/lfu_test.cpp
-  policy/arc_test.cpp)
+  policy/arc_test.cpp
+  policy/wtinylfu_test.cpp)
 target_include_directories(policy_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 # lc_sim: differential tests drive policies through the real Cache.
 target_link_libraries(policy_test PRIVATE lc_policy lc_sim GTest::gtest_main lc_warnings)
