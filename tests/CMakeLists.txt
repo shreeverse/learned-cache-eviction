@@ -22,3 +22,8 @@ add_executable(sim_test
 target_include_directories(sim_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(sim_test PRIVATE lc_sim GTest::gtest_main lc_warnings)
 gtest_discover_tests(sim_test)
+
+add_executable(apps_test
+  apps/size_parse_test.cpp)
+target_link_libraries(apps_test PRIVATE lc_cachesim_lib GTest::gtest_main lc_warnings)
+gtest_discover_tests(apps_test)

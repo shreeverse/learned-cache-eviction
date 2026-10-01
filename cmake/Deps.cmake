@@ -12,3 +12,8 @@ include(GoogleTest)
 # Discover tests when ctest runs, not at build time: the TSan binaries must be started under
 # `setarch -R` on this kernel (see docs/decisions.md, D5), which a build step can't do.
 set(CMAKE_GTEST_DISCOVER_TESTS_DISCOVERY_MODE PRE_TEST)
+
+FetchContent_Declare(cli11
+  URL https://github.com/CLIUtils/CLI11/archive/refs/tags/v2.4.2.tar.gz
+  URL_HASH SHA256=f2d893a65c3b1324c50d4e682c0cdc021dd0477ae2c048544f39eed6654b699a)
+FetchContent_MakeAvailable(cli11)

@@ -14,12 +14,14 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 include(Sanitizers)  # must come before any targets (incl. GoogleTest) so everything is instrumented
 include(Warnings)
 
+include(Deps)
+
 add_subdirectory(trace)
 add_subdirectory(policy)
 add_subdirectory(sim)
+add_subdirectory(apps/cachesim)
 
 if(LC_BUILD_TESTS)
   enable_testing()
-  include(Deps)
   add_subdirectory(tests)
 endif()
