@@ -53,7 +53,7 @@ int run(int argc, char** argv) {
   std::vector<std::uint64_t> sizes;
   sizes.reserve(size_args.size());
   for (const auto& s : size_args) sizes.push_back(lcache::parse_size(s));
-  for (const auto& p : policies) lcache::make_policy(p);  // validate names before any long run
+  for (const auto& p : policies) lcache::make_policy(p, 1);  // validate names before any long run
 
   std::ofstream file;
   if (!out_path.empty()) {
@@ -69,7 +69,7 @@ int run(int argc, char** argv) {
   out << std::setprecision(10);
   for (const auto& policy_name : policies) {
     for (const std::uint64_t size : sizes) {
-      const auto policy = lcache::make_policy(policy_name);
+      const auto policy = lcache::make_policy(policy_name, size);
       const auto r = lcache::simulate(
           *reader, *policy,
           {.capacity_bytes = size, .ignore_size = ignore_size, .max_requests = max_requests});

@@ -31,6 +31,10 @@ class EvictionPolicy {
   virtual void on_remove(Key k) = 0;
 
   virtual std::string_view name() const = 0;
+
+  // True if the policy reads Request::next_vtime (future knowledge, e.g. Belady). simulate()
+  // then annotates the trace first (decisions.md D7).
+  virtual bool needs_next_access() const { return false; }
 };
 
 }  // namespace lcache

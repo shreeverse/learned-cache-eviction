@@ -6,7 +6,8 @@
 
 namespace lcache {
 
-std::unique_ptr<EvictionPolicy> make_policy(std::string_view name) {
+std::unique_ptr<EvictionPolicy> make_policy(std::string_view name,
+                                            std::uint64_t /*capacity_bytes*/) {
   if (name == "lru") return std::make_unique<LruPolicy>();
   throw std::invalid_argument("unknown policy '" + std::string(name) + "'");
 }

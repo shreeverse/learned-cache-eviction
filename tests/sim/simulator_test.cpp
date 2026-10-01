@@ -2,6 +2,8 @@
 
 #include <gtest/gtest.h>
 
+#include <cstdint>
+#include <string_view>
 #include <vector>
 
 #include "policy/lru.h"
@@ -77,6 +79,52 @@ TEST(Simulate, RewindsReaderSoItCanBeReplayed) {
   EXPECT_EQ(a.requests, 3U);
   EXPECT_EQ(b.requests, a.requests);
   EXPECT_EQ(b.hits, a.hits);
+}
+
+}  // namespace
+}  // namespace lcache
+
+namespace lcache {
+namespace {
+
+// Records the next_vtime it is shown, to check simulate() annotates only when asked.
+class NextVtimeProbe final : public EvictionPolicy {
+ public:
+  explicit NextVtimeProbe(bool wants) : wants_(wants) {}
+  void on_hit(const Request& r) override { seen_.push_back(r.next_vtime); }
+  void on_insert(const Request& r) override { seen_.push_back(r.next_vtime); }
+  Key evict() override { return 0; }
+  void on_remove(Key /*k*/) override {}
+  std::string_view name() const override { return "probe"; }
+  bool needs_next_access() const override { return wants_; }
+
+  const std::vector<std::uint64_t>& seen() const { return seen_; }
+
+ private:
+  bool wants_;
+  std::vector<std::uint64_t> seen_;
+};
+
+TEST(Simulate, AnnotatesNextAccessWhenPolicyNeedsIt) {
+  VectorReader reader({req(1), req(2), req(1)});
+  NextVtimeProbe probe(true);
+  simulate(reader, probe, {.capacity_bytes = 10});
+  EXPECT_EQ(probe.seen(), (std::vector<std::uint64_t>{2, kNever, kNever}));
+}
+
+TEST(Simulate, DoesNotAnnotateOtherwise) {
+  VectorReader reader({req(1), req(2), req(1)});
+  NextVtimeProbe probe(false);
+  simulate(reader, probe, {.capacity_bytes = 10});
+  EXPECT_EQ(probe.seen(), (std::vector<std::uint64_t>{kNever, kNever, kNever}));
+}
+
+TEST(Simulate, AnnotationRespectsMaxRequests) {
+  VectorReader reader({req(1), req(2), req(2), req(1)});
+  NextVtimeProbe probe(true);
+  const auto r = simulate(reader, probe, {.capacity_bytes = 10, .max_requests = 3});
+  EXPECT_EQ(r.requests, 3U);
+  EXPECT_EQ(probe.seen(), (std::vector<std::uint64_t>{kNever, 2, kNever}));
 }
 
 }  // namespace
