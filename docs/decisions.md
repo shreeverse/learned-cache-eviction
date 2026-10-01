@@ -109,3 +109,39 @@ Likely cause: in the narrow early sketch most counters saturate from collisions,
 makes old keys look maximally popular, so new candidates are rejected until aging catches up.
 Picking whichever variant suits this one trace would be overfitting, so the original design stays.
 Revisit when sizing the sketch from an object-count estimate, or with Caffeine's adaptive window (M3+).
+
+## D10. Evaluation by time split, with warmup (M3)
+
+The learned policy is trained on the first 50% of a trace and every policy is scored only on the
+last 50% (`SimOptions::warmup_requests`: the first N requests are replayed to warm the cache but not
+counted). Scoring on the training requests would overstate the model. Classic policies are scored
+the same way, so the comparison is fair. The M2 tables (no warmup) are not comparable with M3 tables.
+
+## D11. Features use virtual time (M3)
+
+Ages and gaps between accesses are counted in requests seen by the policy, not trace timestamps.
+Virtual time means the same thing on every trace and uses the same units as `next_vtime`, so labels
+are `next_vtime − now`. Caveat: the Cache never shows the policy objects larger than the whole
+cache, so the policy's clock can fall behind the stream index by that many requests.
+
+## D12. Label: regression on log1p(time to next access) (M3)
+
+**Rejected:** LRB's binary label ("next access beyond the Belady boundary"). Regression gives a
+ranking directly, which is what choosing a victim among candidates needs, and has no boundary
+parameter to tune. The log keeps the far-future tail from dominating the squared loss. Keys never
+requested again are capped at log1p(2 × trace length).
+
+## D13. Feature history only for cached keys (M3, v1)
+
+`FeatureTracker` drops a key's history when it is evicted, so a key that comes back starts with
+no gaps (NaN features). LRB keeps a bounded memory window of history for evicted keys too; that is
+deferred and will be measured, not assumed.
+
+## D14. Predictor interface sees keys, and policies own their predictor (M3)
+
+`Predictor::predict` gets the candidates' keys as well as their features, and an `observe(Request)`
+hook. A LightGBM model ignores both, but they let the same `LearnedPolicy` run with an oracle
+(sampled Belady, which separates the cost of sampling from the cost of prediction error), with
+random scores (lower bound), and with fake models scored by key in tests. LightGBM will be built
+with `USE_OPENMP=OFF`: inference for one batch per eviction doesn't need threads, and LightGBM's
+OpenMP pool would give TSan false positives.
