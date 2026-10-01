@@ -19,8 +19,10 @@ add_executable(policy_test
   policy/belady_test.cpp
   policy/learned_test.cpp
   policy/policy_factory_test.cpp
-  policy/collector_test.cpp)
+  policy/collector_test.cpp
+  policy/fallback_test.cpp)
 target_include_directories(policy_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_definitions(policy_test PRIVATE LC_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data")
 # lc_sim: differential tests drive policies through the real Cache.
 target_link_libraries(policy_test PRIVATE lc_policy lc_sim GTest::gtest_main lc_warnings)
 gtest_discover_tests(policy_test)

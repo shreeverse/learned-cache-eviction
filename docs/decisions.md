@@ -250,3 +250,32 @@ requests means "old" in a small cache and "recent" in a large one.
 **Rejected:** normalizing by capacity in bytes (object sizes vary by 4 orders of magnitude on
 cloudPhysicsIO, so bytes don't say how many items the cache holds); scaling the decayed-counter
 half-lives too (not requested; can be tested the same way).
+
+## D21. Defensive fallback: shadow W-TinyLFU, circuit breaker, time budget (M4)
+
+`FallbackPolicy` ("guarded") wraps the learned policy.
+
+- **Both policies track the real cache.** The learned policy and a W-TinyLFU both receive every
+  hit and insert; whichever is active picks the victim and the other is told via `on_remove`.
+  Switching is therefore instant, and the inactive policy's state is always valid. **Rejected:**
+  rebuilding the fallback's state on demand (a burst of misses right when the model is failing).
+- **Counterfactual = shadow W-TinyLFU.** A third, independent W-TinyLFU runs on its own
+  key -> size bookkeeping and sees every request. Real hits vs shadow hits over a rolling window
+  (ring buffer, default 10,000 requests) measure "are we beating W-TinyLFU right now". It
+  duplicates `sim::Cache`'s rules (~15 lines) because `lc_sim` depends on `lc_policy`.
+- **Circuit breaker.** Learned → fallback when, over a window of learned-mode requests, real hits
+  < shadow hits − margin × window. Fallback → learned after a cooldown (default 50,000 requests),
+  which doubles (to 16× at most) each time a retry fails its first window. **Early check:** from
+  window/10 requests after a switch, trip if behind by more than margin × n + 3√n; the hit
+  difference of two policies over n requests varies by at most about 0.7√n, so this rarely trips
+  on noise but stops a clearly bad model long before a full window (added after a test with a
+  deliberately bad model recovered only 89.2% of W-TinyLFU's hits with full-window checks only).
+  **Rejected:** a shadow *learned* cache while fallen back (it would pay inference cost exactly
+  when the latency guard says not to).
+- **Time budget.** Each learned eviction is timed (`steady_clock`, injectable for tests);
+  `max_breaches` evictions over budget since the last switch (default 1) trip to W-TinyLFU. Inference
+  isn't interruptible, so the slow eviction completes and the switch applies from the next one.
+  **Rejected for now:** a deadline-aware `evict()` that scores candidates until time runs out
+  (cheaper per breach, but more code inside the hot path).
+- With a time budget, results depend on machine speed and load; without one they are
+  deterministic.

@@ -29,5 +29,16 @@ TEST(PolicyFactory, RejectsUnknownNamesAndBadSampleSize) {
                std::invalid_argument);
 }
 
+TEST(PolicyFactory, GuardedWrapsTheLearnedPolicy) {
+  const std::string model = std::string(LC_TEST_DATA_DIR) + "/tiny_model.txt";
+  EXPECT_THROW(make_policy("guarded", 1024), std::invalid_argument);  // needs a model
+  const auto p = make_policy("guarded", PolicyConfig{.capacity_bytes = 1024,
+                                                     .model_path = model,
+                                                     .guard_window = 500,
+                                                     .budget_ns = 1'000'000});
+  EXPECT_EQ(p->name(), "guarded");
+  EXPECT_FALSE(p->needs_next_access());
+}
+
 }  // namespace
 }  // namespace lcache

@@ -16,6 +16,7 @@
 
 #include "apps/cachesim/size_parse.h"
 #include "ml/model_meta.h"
+#include "policy/fallback.h"
 #include "policy/policy_factory.h"
 #include "sim/simulator.h"
 #include "trace/reader_factory.h"
@@ -40,7 +41,7 @@ int run(int argc, char** argv) {
       ->capture_default_str();
   app.add_option("-p,--policy", policies,
                  "Policies, comma-separated: lru, lfu, arc, wtinylfu, belady, oracle-sampled, "
-                 "random-sampled, learned (needs --model)")
+                 "random-sampled, learned and guarded (need --model)")
       ->delimiter(',')
       ->capture_default_str();
   app.add_option("-c,--cache-size", size_args,
@@ -65,6 +66,25 @@ int run(int argc, char** argv) {
   app.add_option("--history-ratio", config.history_ratio,
                  "Memory window as a multiple of the cached object count (overrides --history)")
       ->capture_default_str();
+  app.add_option("--guard-window", config.guard_window,
+                 "guarded: requests in the rolling hit-rate comparison with shadow W-TinyLFU")
+      ->capture_default_str()
+      ->check(CLI::PositiveNumber);
+  app.add_option("--guard-margin", config.guard_margin,
+                 "guarded: fall back when behind W-TinyLFU by more than this hit-rate fraction")
+      ->capture_default_str();
+  app.add_option("--guard-cooldown", config.guard_cooldown,
+                 "guarded: requests on W-TinyLFU before retrying the learned policy")
+      ->capture_default_str();
+  double budget_us = 0;
+  app.add_option("--budget-us", budget_us,
+                 "guarded: time budget per learned eviction in microseconds (0 = none); "
+                 "makes results depend on machine speed")
+      ->capture_default_str();
+  app.add_option("--max-breaches", config.max_breaches,
+                 "guarded: evictions over budget that trip the fallback (1 = at once)")
+      ->capture_default_str()
+      ->check(CLI::PositiveNumber);
   app.add_option("--seed", config.seed, "Seed for sampled policies")->capture_default_str();
   app.add_option("--model", config.model_path, "LightGBM model for the 'learned' policy")
       ->check(CLI::ExistingFile);
@@ -76,6 +96,7 @@ int run(int argc, char** argv) {
   app.add_option("-o,--out", out_path, "Write CSV here instead of stdout");
 
   CLI11_PARSE(app, argc, argv);
+  config.budget_ns = static_cast<std::uint64_t>(budget_us * 1000.0);
 
   if (!config.model_path.empty()) {
     // Run the model with the settings it was trained with (decisions D20).
@@ -121,6 +142,14 @@ int run(int argc, char** argv) {
           << (ignore_size ? "true" : "false") << ',' << r.requests << ',' << r.hits << ','
           << r.hit_rate() << ',' << r.bytes_requested << ',' << r.bytes_hit << ','
           << r.byte_hit_rate() << ',' << warmup << '\n';
+      if (const auto* g = dynamic_cast<const lcache::FallbackPolicy*>(policy.get())) {
+        const auto& st = g->stats();
+        std::cerr << "guarded @" << size << ": evictions learned " << st.learned_evictions
+                  << ", W-TinyLFU " << st.fallback_evictions << "; hit-rate trips "
+                  << st.hit_rate_trips << ", latency trips " << st.latency_trips
+                  << " (budget breaches " << st.budget_breaches << "), retries " << st.retries
+                  << '\n';
+      }
     }
   }
   return 0;

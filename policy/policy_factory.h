@@ -28,6 +28,13 @@ struct PolicyConfig {
   // here: "learned" takes it from the model.
   std::size_t history = 0;
   double history_ratio = 0;
+  // "guarded" (FallbackPolicy around "learned", decisions D21): rolling window and margin for the
+  // hit-rate comparison, cooldown before retrying, and the per-eviction time budget.
+  std::uint64_t guard_window = 10'000;
+  double guard_margin = 0.0;
+  std::uint64_t guard_cooldown = 50'000;
+  std::uint64_t budget_ns = 0;  // 0 = no budget
+  std::uint32_t max_breaches = 1;
 };
 
 // Creates a fresh policy by name. Throws std::invalid_argument for an unknown name or an
@@ -40,8 +47,8 @@ inline std::unique_ptr<EvictionPolicy> make_policy(std::string_view name,
   return make_policy(name, PolicyConfig{.capacity_bytes = capacity_bytes});
 }
 
-// Names make_policy accepts with a default PolicyConfig. "learned" is not listed: it also needs
-// config.model_path.
+// Names make_policy accepts with a default PolicyConfig. "learned" and "guarded" are not listed:
+// they also need config.model_path.
 std::vector<std::string> policy_names();
 
 // True if built with the LightGBM library (config.predictor = "lightgbm" is available).
