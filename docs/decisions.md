@@ -227,3 +227,26 @@ tree). Faster still, but much more code; revisit if M4's time budget needs it.
 
 **Limits:** regression models with numerical splits only; anything else is rejected at load
 (use `--predictor lightgbm`).
+
+## D20. Window scaled with the cache, normalized features, settings stored with the model (M3 follow-up)
+
+**Why:** with a fixed 10k-key window and raw ages, the pipeline lost to LRU on Twitter at 512 KiB
+and to W-TinyLFU on cloudPhysicsIO at 64 and 256 MiB (docs/m3-results.md, step 9). A window of
+10k keys is 8× more of the cache's contents at 512 KiB than at 4 MiB, and an age of 5,000
+requests means "old" in a small cache and "recent" in a large one.
+
+**Decision.**
+- `FeatureConfig.history_ratio`: the ghost window holds at most `ratio × cached objects` keys,
+  recomputed as the cache fills. (Capacity is in bytes, the window counts keys, so "2 ×
+  capacity" is read as 2 × the number of cached objects.) The fixed `history` remains.
+- `FeatureConfig.normalize`: age and gaps are divided by the number of cached objects. Normalized
+  columns are named `age_norm`, `delta_i_norm`, so a model trained on one kind **fails at load**
+  with the other: the policy takes the kind from the model's feature names.
+- **Settings stored with the model:** `lcache-export` writes `<csv>.meta` (history,
+  history_ratio, normalize), `train.py` requires all inputs to agree and writes `<model>.meta`,
+  and `cachesim` / `lcache-export --model` apply it; an explicit flag that contradicts it is an
+  error. This closes the train/serve gap left open in D17.
+
+**Rejected:** normalizing by capacity in bytes (object sizes vary by 4 orders of magnitude on
+cloudPhysicsIO, so bytes don't say how many items the cache holds); scaling the decayed-counter
+half-lives too (not requested; can be tested the same way).

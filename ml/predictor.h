@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <optional>
 #include <random>
 #include <span>
 #include <unordered_map>
@@ -33,6 +34,10 @@ class Predictor {
 
   // True if observe() reads Request::next_vtime, i.e. the predictor knows the future.
   virtual bool needs_next_access() const { return false; }
+
+  // For trained models: whether they expect normalized features (FeatureConfig::normalize, read
+  // from the model's feature names). nullopt = works with either (oracles, fakes, LRU scoring).
+  virtual std::optional<bool> normalized_features() const { return std::nullopt; }
 };
 
 // Perfect predictions: the score is the key's true next access, and keys never requested again

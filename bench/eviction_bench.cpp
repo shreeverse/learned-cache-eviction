@@ -86,7 +86,8 @@ EvictionPolicy& warmed_policy(const std::string& policy_name, const std::string&
                               .predictor = predictor,
                               .sample_size = k,
                               .seed = 1,
-                              .history = kHistory};
+                              .history = kHistory,
+                              .history_ratio = 0};
     slot = make_policy(policy_name, config);
     VectorReader reader(warmup_requests());
     simulate(reader, *slot, {.capacity_bytes = kCapacity});

@@ -19,9 +19,10 @@ struct LearnedOptions {
   // Candidates scored per eviction. If at most this many keys are cached, all of them are.
   std::uint32_t sample_size = 64;
   std::uint64_t seed = 1;  // for candidate sampling; runs are deterministic for a given seed
-  // Evicted keys whose feature history is kept (FeatureTracker memory window, decisions D17).
-  // A model must be evaluated with the setting its training data was exported with.
-  std::size_t history = 0;
+  // Memory window and normalization (decisions D17, D20). A model must be run with the settings
+  // its training data was exported with: normalization is checked against the model's feature
+  // names; the window is recorded in <model>.meta (ml/model_meta.h).
+  FeatureConfig features{};
 };
 
 // Learned eviction in the style of Learning Relaxed Belady (docs/m3-design.md section 3): on
@@ -35,7 +36,8 @@ struct LearnedOptions {
 // Costs: O(1) per hit/insert; O(k * F) per eviction plus one predict() call.
 class LearnedPolicy final : public EvictionPolicy {
  public:
-  // Throws std::invalid_argument if predictor is null or sample_size is 0.
+  // Throws std::invalid_argument if predictor is null, sample_size is 0, or the predictor is a
+  // model trained on the other kind of features (raw vs normalized).
   LearnedPolicy(std::unique_ptr<Predictor> predictor, std::string name,
                 LearnedOptions options = {});
 

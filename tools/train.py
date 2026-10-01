@@ -18,18 +18,21 @@ next access is the furthest. Sampled LRU (highest age) is printed as the baselin
 import argparse
 import sys
 import time
+from pathlib import Path
 
 import lightgbm as lgb
 import numpy as np
 import pandas as pd
 
-# Must match FeatureTracker::feature_names(); the C++ predictor checks this again at load time.
+# Must match FeatureTracker::feature_names(false / true); the C++ predictors check the names
+# again at load time. Exports made with --normalize use the _norm names (decisions D20).
 FEATURES = (
     ["log_size", "age"]
     + [f"delta_{i}" for i in range(1, 9)]
     + ["count"]
     + [f"edc_{i}" for i in range(1, 5)]
 )
+FEATURES_NORM = [f + "_norm" if f == "age" or f.startswith("delta_") else f for f in FEATURES]
 
 
 def parse_args():
@@ -43,7 +46,8 @@ def parse_args():
                    help="regression: train on log1p(min(distance, this)) to stop far/never-again "
                         "keys from dominating the squared error")
     p.add_argument("--horizon", type=int, help="binary: label 1 if distance > horizon")
-    p.add_argument("--ignore-features", nargs="*", default=[], choices=FEATURES)
+    p.add_argument("--ignore-features", nargs="*", default=[],
+                   help="feature columns to blank out (names as in the CSV header)")
     p.add_argument("--valid-frac", type=float, default=0.2)
     p.add_argument("--num-trees", type=int, default=32)
     p.add_argument("--num-leaves", type=int, default=31)
@@ -54,16 +58,27 @@ def parse_args():
 
 
 def load(path):
-    # Lean loading: tens of millions of rows must fit in a few GB. `key` is not needed, columns
-    # are typed up front, and the file is parsed in chunks to limit the parser's peak memory.
+    """Returns (DataFrame, feature column names). Lean: tens of millions of rows must fit in a
+    few GB, so `key` is skipped, columns are typed up front and the file is parsed in chunks."""
     header = list(pd.read_csv(path, nrows=0).columns)
-    expected = ["eviction", "now", "key"] + FEATURES + ["next_distance"]
-    if header != expected:
-        sys.exit(f"unexpected columns:\n  got      {header}\n  expected {expected}")
+    for features in (FEATURES, FEATURES_NORM):
+        if header == ["eviction", "now", "key"] + features + ["next_distance"]:
+            break
+    else:
+        sys.exit(f"{path}: unexpected columns {header}")
     dtypes = {"eviction": np.int64, "now": np.int64, "next_distance": np.int64}
-    dtypes.update({f: np.float32 for f in FEATURES})
+    dtypes.update({f: np.float32 for f in features})
     chunks = pd.read_csv(path, usecols=list(dtypes), dtype=dtypes, chunksize=2_000_000)
-    return pd.concat(chunks, ignore_index=True)[["eviction", "now"] + FEATURES + ["next_distance"]]
+    df = pd.concat(chunks, ignore_index=True)[["eviction", "now"] + features + ["next_distance"]]
+    return df, features
+
+
+def read_meta(path):
+    """The export settings lcache-export wrote next to the CSV (None for older exports)."""
+    try:
+        return Path(path + ".meta").read_text()
+    except FileNotFoundError:
+        return None
 
 
 def eviction_accuracy(eviction, true_dist, score):
@@ -87,14 +102,26 @@ def main():
     if args.objective == "binary" and args.horizon is None:
         sys.exit("--objective binary needs --horizon")
     t0 = time.time()
+    metas = {read_meta(p) for p in args.csv}
+    if len(metas) != 1:
+        sys.exit("the CSVs were exported with different settings (.meta files differ); "
+                 "a model needs one set of features")
+    meta = metas.pop()
     frames = []
     offset = 0
+    features = None
     for path in args.csv:  # keep eviction ids unique across pooled files, in file order
-        part = load(path)
+        part, part_features = load(path)
+        if features is not None and part_features != features:
+            sys.exit(f"{path}: mixes raw and normalized features with the other CSVs")
+        features = part_features
         part["eviction"] += offset
         offset = int(part["eviction"].max()) + 1
         frames.append(part)
     df = pd.concat(frames, ignore_index=True)
+    for f in args.ignore_features:
+        if f not in features:
+            sys.exit(f"--ignore-features: no column {f}")
     cap = 2 * args.window
     dist = np.where(df["next_distance"] < 0, cap, df["next_distance"]).astype(np.float64)
     if args.objective == "binary":
@@ -114,17 +141,18 @@ def main():
     # on eviction keeps every candidate set whole.
     split = df["eviction"].quantile(1 - args.valid_frac)
     is_train = (df["eviction"] < split).to_numpy()
-    X = df[FEATURES].to_numpy(np.float32)
+    X = df[features].to_numpy(np.float32)
     for f in args.ignore_features:
-        X[:, FEATURES.index(f)] = np.nan  # all-missing: LightGBM can't split on it
-    v = df.loc[~is_train, ["eviction", "age"]]  # all that validation metrics need from df
+        X[:, features.index(f)] = np.nan  # all-missing: LightGBM can't split on it
+    age = features[1]  # "age" or "age_norm": same order, so max age is still sampled LRU
+    v = df.loc[~is_train, ["eviction", age]].rename(columns={age: "age"})
     df = df[["eviction"]]  # free the feature columns
     group = {}
     if args.objective == "lambdarank":
         # Rows of one eviction are contiguous; LightGBM wants each query's size, in order.
         group = {"train": df["eviction"][is_train].value_counts(sort=False).sort_index().to_numpy(),
                  "valid": df["eviction"][~is_train].value_counts(sort=False).sort_index().to_numpy()}
-    train = lgb.Dataset(X[is_train], y[is_train], feature_name=FEATURES, free_raw_data=True,
+    train = lgb.Dataset(X[is_train], y[is_train], feature_name=features, free_raw_data=True,
                         group=group.get("train"))
     valid = lgb.Dataset(X[~is_train], y[~is_train], reference=train, group=group.get("valid"))
 
@@ -170,11 +198,15 @@ def main():
 
     gain = booster.feature_importance(importance_type="gain")
     print("feature importance (share of total gain):")
-    for name, g in sorted(zip(FEATURES, gain), key=lambda t: -t[1]):
+    for name, g in sorted(zip(features, gain), key=lambda t: -t[1]):
         print(f"  {name:10s} {g / gain.sum():6.1%}")
 
     booster.save_model(args.out)
-    print(f"wrote {args.out}")
+    if meta is not None:  # the model must run with the features it was trained on (D20)
+        Path(args.out + ".meta").write_text(meta)
+    else:
+        print("warning: the CSVs have no .meta; run the model with the export's --history")
+    print(f"wrote {args.out}" + (" and .meta" if meta is not None else ""))
 
 
 if __name__ == "__main__":

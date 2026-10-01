@@ -18,12 +18,27 @@ namespace lcache {
 //
 // Time is virtual (decisions D11): the i-th call to on_access (0-based) happens at time i.
 //
-// Memory window (decisions D17, revising D13): forget() keeps the history of the
-// `history_capacity` most recently forgotten keys ("ghosts"), so a key that comes back continues
-// its real history instead of starting over. Capacity 0 drops history on forget().
+// Memory window (decisions D17, revising D13): forget() keeps the history of the most recently
+// forgotten keys ("ghosts"), so a key that comes back continues its real history instead of
+// starting over. Either a fixed number of ghosts, or (D20) a multiple of the number of tracked
+// keys, so the window scales with the cache.
+//
+// Normalized features (D20): age and gaps divided by the number of tracked keys (= objects in the
+// cache), so the same model sees comparable values at different cache sizes. Normalized columns
+// have different names (feature_names(true)), so a model can't be used with the wrong kind.
+struct FeatureConfig {
+  std::size_t history = 0;   // fixed ghost count (used when history_ratio is 0)
+  double history_ratio = 0;  // if > 0: at most ceil(ratio * tracked keys) ghosts
+  bool normalize = false;    // age and gaps / tracked keys
+
+  friend bool operator==(const FeatureConfig&, const FeatureConfig&) = default;
+};
+
 class FeatureTracker {
  public:
-  explicit FeatureTracker(std::size_t history_capacity = 0) : history_capacity_(history_capacity) {}
+  explicit FeatureTracker(FeatureConfig config = {}) : config_(config) {}
+  explicit FeatureTracker(std::size_t history_capacity)
+      : FeatureTracker(FeatureConfig{.history = history_capacity}) {}
 
   static constexpr std::size_t kNumDeltas = 8;
   static constexpr std::size_t kNumEdcs = 4;
@@ -56,7 +71,9 @@ class FeatureTracker {
   // Forgotten keys whose history is still kept.
   bool remembers(Key k) const;
   std::size_t ghost_count() const { return ghosts_.size(); }
-  std::size_t history_capacity() const { return history_capacity_; }
+  // Ghosts kept at most, right now (a multiple of size() with history_ratio).
+  std::size_t history_capacity() const;
+  const FeatureConfig& config() const { return config_; }
 
   // Time of the most recent access (0 before any access).
   std::uint64_t now() const { return accesses_ == 0 ? 0 : accesses_ - 1; }
@@ -66,7 +83,10 @@ class FeatureTracker {
   void write_features(Key k, std::span<float> out) const;
 
   // Column names, in row order. Also the names the trained model must have (checked at load).
-  static std::span<const std::string_view, kNumFeatures> feature_names();
+  static std::span<const std::string_view, kNumFeatures> feature_names(bool normalized = false);
+  std::span<const std::string_view, kNumFeatures> names() const {
+    return feature_names(config_.normalize);
+  }
 
  private:
   struct KeyHistory {
@@ -85,7 +105,7 @@ class FeatureTracker {
     std::list<Key>::iterator ghost_pos;  // valid only if ghost
   };
 
-  std::size_t history_capacity_;
+  FeatureConfig config_;
   std::uint64_t accesses_ = 0;
   std::unordered_map<Key, Entry> history_;  // tracked keys and ghosts
   std::list<Key> ghosts_;                   // oldest forgotten first

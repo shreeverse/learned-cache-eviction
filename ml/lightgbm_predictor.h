@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <span>
 #include <string>
 
@@ -28,6 +29,7 @@ class LightGbmPredictor final : public Predictor {
 
   // Boosting iterations in the model (= trees, for regression).
   int num_iterations() const { return num_iterations_; }
+  std::optional<bool> normalized_features() const override { return normalized_; }
 
  private:
   struct BoosterDeleter {
@@ -41,6 +43,7 @@ class LightGbmPredictor final : public Predictor {
   std::unique_ptr<void, BoosterDeleter> booster_;
   std::unique_ptr<void, FastConfigDeleter> fast_config_;
   int num_iterations_ = 0;
+  bool normalized_ = false;
 };
 
 }  // namespace lcache

@@ -5,6 +5,7 @@
 #include <limits>
 #include <span>
 #include <stdexcept>
+#include <string>
 #include <utility>
 
 namespace lcache {
@@ -23,10 +24,14 @@ LearnedPolicy::LearnedPolicy(std::unique_ptr<Predictor> predictor, std::string n
     : predictor_(std::move(predictor)),
       name_(std::move(name)),
       options_(options),
-      tracker_(options.history),
+      tracker_(options.features),
       rng_(options.seed) {
   if (!predictor_) throw std::invalid_argument("LearnedPolicy: predictor is null");
   if (options_.sample_size == 0) throw std::invalid_argument("LearnedPolicy: sample_size is 0");
+  if (const auto n = predictor_->normalized_features(); n && *n != options_.features.normalize) {
+    throw std::invalid_argument(std::string("LearnedPolicy: the model expects ") +
+                                (*n ? "normalized" : "raw") + " features");
+  }
 }
 
 void LearnedPolicy::on_hit(const Request& r) {

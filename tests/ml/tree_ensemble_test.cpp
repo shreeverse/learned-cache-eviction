@@ -129,6 +129,22 @@ void expect_rejected(const std::string& text, const std::string& reason) {
   }
 }
 
+TEST(TreeEnsemblePredictor, ReportsWhichFeatureSetTheModelWasTrainedOn) {
+  EXPECT_EQ(TreeEnsemblePredictor(kTinyModel).normalized_features(), false);
+
+  // The same model with the normalized names (as if trained on --normalize data).
+  std::string text = read_file(kTinyModel);
+  std::string norm_names;
+  for (const auto n : FeatureTracker::feature_names(true)) {
+    norm_names += (norm_names.empty() ? "" : " ") + std::string(n);
+  }
+  const auto line = text.find("feature_names=");
+  text.replace(line, text.find('\n', line) - line, "feature_names=" + norm_names);
+  const test::TempFile file(".txt");
+  file.write(text);
+  EXPECT_EQ(TreeEnsemblePredictor(file.path().string()).normalized_features(), true);
+}
+
 TEST(TreeEnsemblePredictor, RejectsWhatItCannotEvaluateExactly) {
   EXPECT_THROW(TreeEnsemblePredictor("/nonexistent/model.txt"), std::runtime_error);
 
@@ -138,7 +154,7 @@ TEST(TreeEnsemblePredictor, RejectsWhatItCannotEvaluateExactly) {
 
   std::string renamed = read_file(kTinyModel);
   renamed.replace(renamed.find("log_size age "), 13, "log_size agez ");
-  expect_rejected(renamed, "feature names");
+  expect_rejected(renamed, "not FeatureTracker's");
 
   std::string categorical = handmade_model();
   categorical.replace(categorical.find("decision_type=10"), 16, "decision_type=11");

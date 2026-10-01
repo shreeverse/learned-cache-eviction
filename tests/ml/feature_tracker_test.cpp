@@ -6,6 +6,7 @@
 #include <cmath>
 #include <set>
 #include <stdexcept>
+#include <string>
 #include <string_view>
 
 namespace lcache {
@@ -199,6 +200,47 @@ TEST(FeatureTracker, ForgetIsIdempotentAndIgnoresUnknownKeys) {
   ft.forget(42);  // unknown
   EXPECT_EQ(ft.ghost_count(), 1U);
   EXPECT_EQ(ft.size(), 0U);
+}
+
+// ---- Window as a multiple of the tracked keys, and normalization (D20) -------------------------
+
+TEST(FeatureTracker, RatioWindowFollowsTheNumberOfTrackedKeys) {
+  FT ft(FeatureConfig{.history_ratio = 0.5});
+  for (const Key k : {Key{1}, Key{2}, Key{3}, Key{4}}) ft.on_access(k, 1);
+  ft.forget(1);  // 3 tracked: cap ceil(1.5) = 2
+  EXPECT_EQ(ft.history_capacity(), 2U);
+  EXPECT_TRUE(ft.remembers(1));
+  ft.forget(2);  // 2 tracked: cap 1, so the oldest ghost (1) goes
+  EXPECT_EQ(ft.history_capacity(), 1U);
+  EXPECT_FALSE(ft.remembers(1));
+  EXPECT_TRUE(ft.remembers(2));
+  EXPECT_EQ(ft.ghost_count(), 1U);
+}
+
+TEST(FeatureTracker, NormalizedAgeAndGapsAreDividedByTrackedKeys) {
+  FT ft(FeatureConfig{.normalize = true});
+  for (const Key k : {Key{1}, Key{2}, Key{3}, Key{4}}) ft.on_access(k, 8);  // t = 0..3
+  ft.on_access(1, 8);                                                       // t = 4, gap 4
+  tick(ft, 3);  // t = 5..7, adds the filler key: 5 tracked keys
+  const Row f = features(ft, 1);
+  EXPECT_FLOAT_EQ(f[FT::kAge], 3.0F / 5.0F);     // age 3
+  EXPECT_FLOAT_EQ(f[FT::kDelta0], 4.0F / 5.0F);  // gap 4
+  EXPECT_FLOAT_EQ(f[FT::kLogSize], 3.0F);        // not normalized
+  EXPECT_FLOAT_EQ(f[FT::kCount], 2.0F);          // not normalized
+  EXPECT_EQ(ft.names()[FT::kAge], "age_norm");
+}
+
+TEST(FeatureTracker, NormalizedNamesDifferOnlyWhereValuesDo) {
+  const auto raw = FT::feature_names(false);
+  const auto norm = FT::feature_names(true);
+  for (std::size_t i = 0; i < FT::kNumFeatures; ++i) {
+    const bool scaled = i == FT::kAge || (i >= FT::kDelta0 && i < FT::kDelta0 + FT::kNumDeltas);
+    if (scaled) {
+      EXPECT_EQ(std::string(norm[i]), std::string(raw[i]) + "_norm");
+    } else {
+      EXPECT_EQ(norm[i], raw[i]);
+    }
+  }
 }
 
 TEST(FeatureTracker, UnknownKeyThrows) {

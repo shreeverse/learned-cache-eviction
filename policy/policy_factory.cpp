@@ -19,7 +19,9 @@ namespace lcache {
 
 std::unique_ptr<EvictionPolicy> make_policy(std::string_view name, const PolicyConfig& config) {
   const LearnedOptions sampled{
-      .sample_size = config.sample_size, .seed = config.seed, .history = config.history};
+      .sample_size = config.sample_size,
+      .seed = config.seed,
+      .features = {.history = config.history, .history_ratio = config.history_ratio}};
   if (name == "lru") return std::make_unique<LruPolicy>();
   if (name == "lfu") return std::make_unique<LfuPolicy>();
   if (name == "arc") return std::make_unique<ArcPolicy>(config.capacity_bytes);
@@ -50,7 +52,9 @@ std::unique_ptr<EvictionPolicy> make_policy(std::string_view name, const PolicyC
     } else {
       throw std::invalid_argument("unknown predictor '" + config.predictor + "'");
     }
-    return std::make_unique<LearnedPolicy>(std::move(predictor), std::string(name), sampled);
+    LearnedOptions options = sampled;
+    options.features.normalize = predictor->normalized_features().value_or(false);
+    return std::make_unique<LearnedPolicy>(std::move(predictor), std::string(name), options);
   }
   throw std::invalid_argument("unknown policy '" + std::string(name) + "'");
 }

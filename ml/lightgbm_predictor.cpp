@@ -66,11 +66,19 @@ LightGbmPredictor::LightGbmPredictor(const std::string& model_path) {
   booster_.reset(booster);
 
   const auto names = model_feature_names(booster);
-  std::vector<std::string> expected;
-  for (const std::string_view n : FeatureTracker::feature_names()) expected.emplace_back(n);
-  if (names != expected) {
+  const auto expected = [](bool normalized) {
+    std::vector<std::string> out;
+    for (const std::string_view n : FeatureTracker::feature_names(normalized)) out.emplace_back(n);
+    return out;
+  };
+  if (names == expected(false)) {
+    normalized_ = false;
+  } else if (names == expected(true)) {
+    normalized_ = true;
+  } else {
     throw std::runtime_error("model '" + model_path + "' has features [" + join(names) +
-                             "], but FeatureTracker computes [" + join(expected) + "]");
+                             "], but FeatureTracker computes [" + join(expected(false)) +
+                             "] (or the _norm variants)");
   }
 
   FastConfigHandle config = nullptr;

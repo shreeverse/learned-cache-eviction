@@ -23,6 +23,7 @@
 #ifdef LC_HAVE_LIGHTGBM
 #include "ml/lightgbm_predictor.h"
 #endif
+#include "ml/model_meta.h"
 #include "ml/predictor.h"
 #include "ml/recording_predictor.h"
 #include "ml/tree_ensemble.h"
@@ -59,10 +60,14 @@ int run(int argc, char** argv) {
   app.add_option("--sample-size", options.sample_size, "Candidates per eviction")
       ->capture_default_str()
       ->check(CLI::PositiveNumber);
-  app.add_option("--history", options.history,
-                 "Evicted keys whose feature history is kept (memory window); a model must be "
-                 "run with the value its training data was exported with")
+  app.add_option("--history", options.features.history,
+                 "Evicted keys whose feature history is kept (fixed memory window)")
       ->capture_default_str();
+  app.add_option("--history-ratio", options.features.history_ratio,
+                 "Memory window as a multiple of the cached object count (overrides --history)")
+      ->capture_default_str();
+  app.add_flag("--normalize", options.features.normalize,
+               "Divide age and gaps by the cached object count (decisions D20)");
   app.add_option("--seed", options.seed, "Seed for candidate sampling")->capture_default_str();
   app.add_option("--every", every, "Record the candidates of every N-th eviction")
       ->capture_default_str()
@@ -86,20 +91,36 @@ int run(int argc, char** argv) {
   if (!out) throw std::runtime_error("cannot open output file: " + out_path);
 
   std::unique_ptr<lcache::Predictor> chooser;
-  if (model_path.empty() && collector_kind == "lru") {
-    chooser = std::make_unique<lcache::AgePredictor>();
-  } else if (model_path.empty()) {
-    chooser = std::make_unique<lcache::RandomPredictor>(options.seed + 1);
-  } else if (predictor_kind == "compiled") {
-    chooser = std::make_unique<lcache::TreeEnsemblePredictor>(model_path);
+  if (model_path.empty()) {
+    if (collector_kind == "lru") {
+      chooser = std::make_unique<lcache::AgePredictor>();
+    } else {
+      chooser = std::make_unique<lcache::RandomPredictor>(options.seed + 1);
+    }
   } else {
+    // An on-policy export runs the model with the settings it was trained with (<model>.meta).
+    const auto f = lcache::resolve_model_features(
+        model_path, options.features, app.count("--history") > 0, app.count("--history-ratio") > 0);
+    options.features.history = f.history;
+    options.features.history_ratio = f.history_ratio;
+    if (predictor_kind == "compiled") {
+      chooser = std::make_unique<lcache::TreeEnsemblePredictor>(model_path);
+    } else {
 #ifdef LC_HAVE_LIGHTGBM
-    chooser = std::make_unique<lcache::LightGbmPredictor>(model_path);
+      chooser = std::make_unique<lcache::LightGbmPredictor>(model_path);
 #else
-    throw std::runtime_error("--predictor lightgbm needs a build with LC_WITH_LIGHTGBM=ON");
+      throw std::runtime_error("--predictor lightgbm needs a build with LC_WITH_LIGHTGBM=ON");
 #endif
+    }
   }
-  auto recorder = std::make_unique<lcache::RecordingPredictor>(std::move(chooser), out, every);
+  if (const auto n = chooser->normalized_features()) {
+    if (app.count("--normalize") > 0 && *n != options.features.normalize) {
+      throw std::invalid_argument("--normalize contradicts the model's feature names");
+    }
+    options.features.normalize = *n;  // a model decides which features it needs
+  }
+  auto recorder = std::make_unique<lcache::RecordingPredictor>(std::move(chooser), out, every,
+                                                               options.features.normalize);
   const lcache::RecordingPredictor& stats = *recorder;
   lcache::LearnedPolicy collector(std::move(recorder), "collector", options);
 
@@ -110,6 +131,7 @@ int run(int argc, char** argv) {
 
   out.close();
   if (!out) throw std::runtime_error("error writing " + out_path);
+  lcache::write_feature_meta(out_path, options.features);  // train.py copies it to the model
   std::cerr << "requests " << r.requests << ", hit rate " << r.hit_rate() << ", evictions "
             << stats.evictions() << ", rows " << stats.rows_written() << " -> " << out_path << '\n';
   return 0;

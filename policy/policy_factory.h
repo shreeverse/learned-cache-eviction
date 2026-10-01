@@ -23,8 +23,11 @@ struct PolicyConfig {
   // seed for sampling and random scores.
   std::uint32_t sample_size = 64;
   std::uint64_t seed = 1;
-  // Sampled policies: evicted keys whose feature history is kept (decisions D17).
+  // Sampled policies: evicted keys whose feature history is kept (decisions D17, D20): a fixed
+  // count, or history_ratio * cached objects if history_ratio > 0. Feature normalization is not
+  // here: "learned" takes it from the model.
   std::size_t history = 0;
+  double history_ratio = 0;
 };
 
 // Creates a fresh policy by name. Throws std::invalid_argument for an unknown name or an

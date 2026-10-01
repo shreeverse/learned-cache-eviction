@@ -26,12 +26,18 @@ void put(std::ostream& out, T value) {
 }  // namespace
 
 RecordingPredictor::RecordingPredictor(std::unique_ptr<Predictor> inner, std::ostream& out,
-                                       std::uint32_t every)
-    : inner_(std::move(inner)), out_(out), every_(every) {
+                                       std::uint32_t every, bool normalized)
+    : inner_(std::move(inner)), out_(out), every_(every), normalized_(normalized) {
   if (!inner_) throw std::invalid_argument("RecordingPredictor: inner predictor is null");
   if (every_ == 0) throw std::invalid_argument("RecordingPredictor: every is 0");
+  if (const auto n = inner_->normalized_features(); n && *n != normalized_) {
+    throw std::invalid_argument("RecordingPredictor: the model was trained on " +
+                                std::string(*n ? "normalized" : "raw") + " features");
+  }
   out_ << "eviction,now,key";
-  for (const std::string_view name : FeatureTracker::feature_names()) out_ << ',' << name;
+  for (const std::string_view name : FeatureTracker::feature_names(normalized_)) {
+    out_ << ',' << name;
+  }
   out_ << ",next_distance\n";
 }
 

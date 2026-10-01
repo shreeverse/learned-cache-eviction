@@ -130,11 +130,18 @@ TreeEnsemblePredictor::TreeEnsemblePredictor(const std::string& model_path) {
     fail(model_path, "multi-class models are not supported");
   }
   const auto names = split_words(field(model_path, header, "feature_names"));
-  const auto expected = FeatureTracker::feature_names();
-  if (names.size() != expected.size() ||
-      !std::equal(names.begin(), names.end(), expected.begin())) {
+  const auto matches = [&names](bool normalized) {
+    const auto expected = FeatureTracker::feature_names(normalized);
+    return names.size() == expected.size() &&
+           std::equal(names.begin(), names.end(), expected.begin());
+  };
+  if (matches(false)) {
+    normalized_ = false;
+  } else if (matches(true)) {
+    normalized_ = true;
+  } else {
     fail(model_path, "feature names [" + field(model_path, header, "feature_names") +
-                         "] differ from FeatureTracker's");
+                         "] are not FeatureTracker's (raw or normalized)");
   }
   if (trees.empty()) fail(model_path, "no trees");
 

@@ -26,12 +26,16 @@ class RecordingPredictor final : public Predictor {
  public:
   // Writes the header immediately. Records the candidates of every `every`-th eviction (the 1st,
   // then the (every+1)-th, ...) to keep files small on long traces. Throws if every is 0.
-  RecordingPredictor(std::unique_ptr<Predictor> inner, std::ostream& out, std::uint32_t every = 1);
+  // `normalized` must match the policy's FeatureConfig (it names the columns); throws if the
+  // inner predictor is a model trained on the other kind.
+  RecordingPredictor(std::unique_ptr<Predictor> inner, std::ostream& out, std::uint32_t every = 1,
+                     bool normalized = false);
 
   void predict(std::span<const Key> keys, std::span<const float> features,
                std::span<double> scores) override;
   void observe(const Request& r) override;
   bool needs_next_access() const override { return true; }  // labels need the future
+  std::optional<bool> normalized_features() const override { return normalized_; }
 
   std::uint64_t evictions() const { return evictions_; }
   std::uint64_t rows_written() const { return rows_; }
@@ -40,6 +44,7 @@ class RecordingPredictor final : public Predictor {
   std::unique_ptr<Predictor> inner_;
   std::ostream& out_;
   std::uint32_t every_;
+  bool normalized_;
   std::uint64_t observed_ = 0;
   std::uint64_t evictions_ = 0;
   std::uint64_t rows_ = 0;

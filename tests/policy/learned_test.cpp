@@ -8,7 +8,9 @@
 #include <limits>
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
+#include <span>
 #include <stdexcept>
 #include <utility>
 #include <vector>
@@ -153,7 +155,7 @@ TEST(LearnedPolicy, EvictionAndRemovalDropFeatureHistory) {
 }
 
 TEST(LearnedPolicy, MemoryWindowKeepsHistoryOfEvictedKeys) {
-  auto f = make(table({{1, 10.0}}), {.sample_size = 64, .seed = 1, .history = 8});
+  auto f = make(table({{1, 10.0}}), {.sample_size = 64, .seed = 1, .features = {.history = 8}});
   for (const Key k : std::initializer_list<Key>{1, 2}) f.policy->on_insert(test::req(k));
   f.policy->on_hit(test::req(1));
   EXPECT_EQ(f.policy->evict(), 1U);
@@ -164,6 +166,21 @@ TEST(LearnedPolicy, MemoryWindowKeepsHistoryOfEvictedKeys) {
   f.policy->tracker().write_features(1, row);
   EXPECT_FLOAT_EQ(row[FT::kCount], 3.0F);
   EXPECT_EQ(f.policy->evict(), 1U);  // still the only key the table scores high
+}
+
+// A predictor standing in for a model trained on normalized features.
+class NormalizedModel final : public Predictor {
+ public:
+  void predict(std::span<const Key>, std::span<const float>, std::span<double> scores) override {
+    for (double& s : scores) s = 0;
+  }
+  std::optional<bool> normalized_features() const override { return true; }
+};
+
+TEST(LearnedPolicy, RefusesAModelTrainedOnTheOtherFeatureKind) {
+  EXPECT_THROW(LearnedPolicy(std::make_unique<NormalizedModel>(), "x"), std::invalid_argument);
+  EXPECT_NO_THROW(
+      LearnedPolicy(std::make_unique<NormalizedModel>(), "x", {.features = {.normalize = true}}));
 }
 
 TEST(LearnedPolicy, SameSeedSameEvictions) {

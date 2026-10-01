@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <map>
+#include <optional>
 #include <span>
 #include <string>
 #include <vector>
@@ -27,7 +28,7 @@ namespace lcache {
 class TreeEnsemblePredictor final : public Predictor {
  public:
   // Throws std::runtime_error if the file can't be read, isn't a supported model, or its
-  // feature names differ from FeatureTracker::feature_names().
+  // feature names are neither FeatureTracker::feature_names(false) nor (true).
   explicit TreeEnsemblePredictor(const std::string& model_path);
 
   void predict(std::span<const Key> keys, std::span<const float> features,
@@ -37,6 +38,7 @@ class TreeEnsemblePredictor final : public Predictor {
   double predict_row(std::span<const float> row) const;
 
   std::size_t num_trees() const { return trees_.size(); }
+  std::optional<bool> normalized_features() const override { return normalized_; }
 
   static constexpr std::size_t kLanes = 8;  // rows walked through a tree together
 
@@ -67,7 +69,8 @@ class TreeEnsemblePredictor final : public Predictor {
 
   std::vector<Tree> trees_;
   std::vector<Node> nodes_;
-  bool any_zero_missing_ = false;  // if no split uses it, a cheaper step is used
+  bool any_zero_missing_ = false;
+  bool normalized_ = false;  // if no split uses it, a cheaper step is used
 };
 
 }  // namespace lcache

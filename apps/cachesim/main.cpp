@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "apps/cachesim/size_parse.h"
+#include "ml/model_meta.h"
 #include "policy/policy_factory.h"
 #include "sim/simulator.h"
 #include "trace/reader_factory.h"
@@ -58,8 +59,11 @@ int run(int argc, char** argv) {
       ->capture_default_str()
       ->check(CLI::PositiveNumber);
   app.add_option("--history", config.history,
-                 "Evicted keys whose feature history is kept (memory window); a model must be "
-                 "run with the value its training data was exported with")
+                 "Sampled policies: evicted keys whose feature history is kept (fixed window). "
+                 "For 'learned', taken from <model>.meta when that exists")
+      ->capture_default_str();
+  app.add_option("--history-ratio", config.history_ratio,
+                 "Memory window as a multiple of the cached object count (overrides --history)")
       ->capture_default_str();
   app.add_option("--seed", config.seed, "Seed for sampled policies")->capture_default_str();
   app.add_option("--model", config.model_path, "LightGBM model for the 'learned' policy")
@@ -72,6 +76,15 @@ int run(int argc, char** argv) {
   app.add_option("-o,--out", out_path, "Write CSV here instead of stdout");
 
   CLI11_PARSE(app, argc, argv);
+
+  if (!config.model_path.empty()) {
+    // Run the model with the settings it was trained with (decisions D20).
+    const auto f = lcache::resolve_model_features(
+        config.model_path, {.history = config.history, .history_ratio = config.history_ratio},
+        app.count("--history") > 0, app.count("--history-ratio") > 0);
+    config.history = f.history;
+    config.history_ratio = f.history_ratio;
+  }
 
   std::vector<std::uint64_t> sizes;
   sizes.reserve(size_args.size());

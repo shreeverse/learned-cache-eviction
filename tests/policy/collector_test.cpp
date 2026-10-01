@@ -89,6 +89,13 @@ TEST(Collector, HeaderNamesEveryColumn) {
   EXPECT_EQ(out.str(), expected + ",next_distance\n");
 }
 
+TEST(Collector, NormalizedHeaderAndModelMismatch) {
+  std::ostringstream out;
+  const RecordingPredictor rec(std::make_unique<AgePredictor>(), out, 1, /*normalized=*/true);
+  EXPECT_NE(out.str().find(",age_norm,"), std::string::npos) << out.str();
+  EXPECT_EQ(rec.normalized_features(), true);
+}
+
 TEST(Collector, RejectsBadArguments) {
   std::ostringstream out;
   EXPECT_THROW(RecordingPredictor(nullptr, out), std::invalid_argument);
