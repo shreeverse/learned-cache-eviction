@@ -74,3 +74,38 @@ D4 kept next-access information out of `Request`. Belady (M2) and the M3 labels 
 walk it backwards with a last-seen map. The oracleGeneral file's own field is still ignored: its
 indices count the size-0 records we skip, and CSV traces don't have it. Cost: O(N) memory,
 about 24 bytes per request in memory. Very large traces will need sampling.
+
+## D8. ARC with variable sizes differs from libCacheSim's ARC (M2)
+
+Both match the paper (and each other) exactly with unit sizes. With byte sizes, ours differs from
+libCacheSim by −0.26 to +1.64 pp on cloudPhysicsIO. The paper is defined for unit pages, so byte
+ARC has no canonical form:
+- **Ours:** insert-then-evict; ghost lists trimmed to the paper's bounds (|T1|+|B1| ≤ c,
+  total ≤ 2c, in bytes) once the resident set fits; p moves by `size × max(1, ratio)`.
+- **libCacheSim:** evict-then-insert; deletes at most one ghost per miss; p moves by
+  `max(1, ratio)` bytes regardless of object size.
+
+**Tested hypothesis (rejected):** p's step size is not the cause. With libCacheSim's unscaled step,
+ours gives 21,008 / 30,242 / 49,505 hits vs libCacheSim's 21,300 / 28,011 / 49,100, no closer.
+We keep the size-scaled step: with unit sizes it is exactly the paper's δ.
+
+## D9. W-TinyLFU sketch growth: forget counts (kept) vs keep counts (rejected) (M2)
+
+The sketch starts 16 wide and doubles when resident keys exceed its width. Because widths are
+powers of two, doubling *could* keep every estimate (copy each counter into column j and
+j + old width). We measured both on cloudPhysicsIO (hits):
+
+| config | forget on growth (kept) | keep counts | change |
+|---|---|---|---|
+| 64 MiB | 22,470 | 22,906 | +0.38 pp |
+| 256 MiB | 33,088 | 26,802 | −5.52 pp |
+| 1 GiB | 54,257 | 59,552 | +4.65 pp |
+| 100 objects | 14,596 | 14,797 | +0.18 pp |
+| 1,000 objects | 20,418 | 20,069 | −0.31 pp |
+| 10,000 objects | 39,604 | 30,530 | −7.97 pp |
+
+Keeping counts is not better overall: it wins 3 configurations and loses 3, by up to 7.97 pp.
+Likely cause: in the narrow early sketch most counters saturate from collisions, and keeping them
+makes old keys look maximally popular, so new candidates are rejected until aging catches up.
+Picking whichever variant suits this one trace would be overfitting, so the original design stays.
+Revisit when sizing the sketch from an object-count estimate, or with Caffeine's adaptive window (M3+).
