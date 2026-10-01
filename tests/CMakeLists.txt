@@ -33,3 +33,9 @@ add_executable(apps_test
   apps/size_parse_test.cpp)
 target_link_libraries(apps_test PRIVATE lc_cachesim_lib GTest::gtest_main lc_warnings)
 gtest_discover_tests(apps_test)
+
+add_executable(sketch_test
+  sketch/count_min_sketch_test.cpp)
+target_include_directories(sketch_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(sketch_test PRIVATE lc_sketch GTest::gtest_main lc_warnings)
+gtest_discover_tests(sketch_test)
