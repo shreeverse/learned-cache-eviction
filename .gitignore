@@ -1,0 +1,21 @@
+# Build trees (one per CMake preset)
+build/
+out/
+
+# Large traces are downloaded by tools/fetch_traces.sh, never committed
+data/*
+!data/README.md
+!data/*.csv
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+compile_commands.json
+.cache/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
