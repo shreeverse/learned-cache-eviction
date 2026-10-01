@@ -6,7 +6,8 @@
 // (tools/fetch_traces.sh) into a 1 MiB cache, so caches are full and feature histories are
 // realistic. Then:
 //   evict/<policy>/k:<k>              one evict() plus re-inserting the victim (cache stays full);
-//                                     guarded = the M4 FallbackPolicy around learned, no budget
+//                                     guarded = the M4 FallbackPolicy around learned, no budget,
+//                                     held in learned mode (its overhead, not its fallback)
 //   predict/<model>_<predictor>/k:<k> one Predictor::predict() call on k real feature rows
 // <predictor> is lightgbm (the library) or compiled (TreeEnsemblePredictor; identical scores).
 // The lru and random-sampled rows show what the re-insert and sampling cost without a model.
@@ -16,6 +17,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <initializer_list>
+#include <limits>
 #include <map>
 #include <memory>
 #include <random>
@@ -88,7 +90,11 @@ EvictionPolicy& warmed_policy(const std::string& policy_name, const std::string&
                               .sample_size = k,
                               .seed = 1,
                               .history = kHistory,
-                              .history_ratio = 0};
+                              .history_ratio = 0,
+                              // guarded: never judged, so it stays in learned mode and the run
+                              // measures the wrapper's overhead (this loop has no real hits, which
+                              // would otherwise trip it to W-TinyLFU at once)
+                              .guard_grace = std::numeric_limits<std::uint64_t>::max()};
     slot = make_policy(policy_name, config);
     VectorReader reader(warmup_requests());
     simulate(reader, *slot, {.capacity_bytes = kCapacity});

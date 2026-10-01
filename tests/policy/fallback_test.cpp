@@ -240,7 +240,7 @@ TEST(FallbackPolicy, LatencySpikeTripsAtOnce) {
   EXPECT_EQ(p.stats().fallback_evictions, 1U);
 }
 
-TEST(FallbackPolicy, MaxBreachesCountsSlowEvictionsSinceTheLastSwitch) {
+TEST(FallbackPolicy, MaxBreachesCountsSlowEvictionsInTheBreachWindow) {
   SlowModel m;
   FallbackPolicy p(m.policy(), kCap, m.options(1'000'000, /*max_breaches=*/3));
   insert_keys(p, 1, 21);
@@ -251,9 +251,26 @@ TEST(FallbackPolicy, MaxBreachesCountsSlowEvictionsSinceTheLastSwitch) {
   p.evict();  // fast: doesn't reset the count
   EXPECT_EQ(p.mode(), FallbackPolicy::Mode::kLearned);
   m.cost_ns = 500'000;
-  p.evict();  // breach 3
+  p.evict();  // breach 3 within the window
   EXPECT_EQ(p.mode(), FallbackPolicy::Mode::kFallback);
   EXPECT_EQ(p.stats().budget_breaches, 3U);
+}
+
+TEST(FallbackPolicy, RareBreachesSpreadOverTimeDoNotAddUp) {
+  // Jitter: one slow eviction every 10, with 2 allowed per 10 evictions, never trips.
+  SlowModel m;
+  FallbackOptions o = m.options(1'000'000, /*max_breaches=*/2);
+  o.breach_window = 10;
+  FallbackPolicy p(m.policy(), kCap, o);
+  insert_keys(p, 1, 1'001);
+  for (int i = 0; i < 500; ++i) {
+    m.cost_ns = i % 10 == 0 ? 500'000 : 1;
+    p.evict();
+    p.on_insert(test::req(static_cast<Key>(10'000 + i)));
+  }
+  EXPECT_EQ(p.stats().budget_breaches, 50U);
+  EXPECT_EQ(p.stats().latency_trips, 0U);
+  EXPECT_EQ(p.mode(), FallbackPolicy::Mode::kLearned);
 }
 
 TEST(FallbackPolicy, NoBudgetMeansNoLatencyTrips) {

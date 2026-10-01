@@ -76,6 +76,7 @@ std::unique_ptr<EvictionPolicy> make_policy(std::string_view name, const PolicyC
                                                             .cooldown = config.guard_cooldown,
                                                             .budget_ns = config.budget_ns,
                                                             .max_breaches = config.max_breaches,
+                                                            .breach_window = config.breach_window,
                                                             .clock_ns = {}});
   }
   throw std::invalid_argument("unknown policy '" + std::string(name) + "'");

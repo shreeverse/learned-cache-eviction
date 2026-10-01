@@ -37,6 +37,7 @@ struct PolicyConfig {
   std::uint64_t guard_cooldown = 50'000;
   std::uint64_t budget_ns = 0;  // 0 = no budget
   std::uint32_t max_breaches = 1;
+  std::uint64_t breach_window = 1'000;
 };
 
 // Creates a fresh policy by name. Throws std::invalid_argument for an unknown name or an

@@ -87,7 +87,12 @@ int run(int argc, char** argv) {
                  "makes results depend on machine speed")
       ->capture_default_str();
   app.add_option("--max-breaches", config.max_breaches,
-                 "guarded: evictions over budget that trip the fallback (1 = at once)")
+                 "guarded: evictions over budget within --breach-window learned evictions that "
+                 "trip the fallback (1 = at the first breach)")
+      ->capture_default_str()
+      ->check(CLI::PositiveNumber);
+  app.add_option("--breach-window", config.breach_window,
+                 "guarded: learned evictions over which --max-breaches is counted")
       ->capture_default_str()
       ->check(CLI::PositiveNumber);
   app.add_option("--seed", config.seed, "Seed for sampled policies")->capture_default_str();

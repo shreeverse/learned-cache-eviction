@@ -64,7 +64,10 @@ Key FallbackPolicy::evict() {
 
   if (options_.budget_ns != 0 && elapsed > options_.budget_ns) {
     ++stats_.budget_breaches;
-    if (++breaches_ >= options_.max_breaches) {
+    const std::uint64_t now = stats_.learned_evictions;
+    breaches_.push_back(now);
+    while (now - breaches_.front() >= options_.breach_window) breaches_.pop_front();
+    if (breaches_.size() >= options_.max_breaches) {
       ++stats_.latency_trips;
       switch_to(Mode::kFallback);  // this victim stands; the next eviction is W-TinyLFU's
     }
@@ -161,7 +164,7 @@ bool FallbackPolicy::learned_is_behind() {
 void FallbackPolicy::switch_to(Mode m) {
   mode_ = m;
   since_switch_ = 0;
-  breaches_ = 0;
+  breaches_.clear();
   real_since_ = 0;
   shadow_since_ = 0;
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <deque>
 #include <functional>
 #include <memory>
 #include <string_view>
@@ -29,8 +30,11 @@ struct FallbackOptions {
   std::uint64_t cooldown = 50'000;
   // Time budget per learned eviction, in nanoseconds; 0 = no budget.
   std::uint64_t budget_ns = 0;
-  // Learned evictions over budget (since the last switch) that trip the fallback; 1 = at once.
+  // Learned evictions over budget within the last `breach_window` learned evictions that trip the
+  // fallback; 1 = at the first breach. Counting in a window (not since the last switch) keeps
+  // rare scheduling jitter from adding up to a trip over a long run.
   std::uint32_t max_breaches = 1;
+  std::uint64_t breach_window = 1'000;
   // Monotonic clock in nanoseconds; defaults to std::chrono::steady_clock. Tests inject a fake.
   std::function<std::uint64_t()> clock_ns{};
 };
@@ -105,11 +109,11 @@ class FallbackPolicy final : public EvictionPolicy {
   std::size_t ring_pos_ = 0;
 
   Mode mode_ = Mode::kLearned;
-  std::uint64_t since_switch_ = 0;  // requests since the last mode switch
-  std::uint32_t breaches_ = 0;      // budget breaches since the last switch
-  std::uint64_t real_since_ = 0;    // real hits since judging started (after the grace period)
-  std::uint64_t shadow_since_ = 0;  // shadow hits since judging started
-  std::uint64_t backoff_ = 1;       // cooldown multiplier
+  std::uint64_t since_switch_ = 0;      // requests since the last mode switch
+  std::deque<std::uint64_t> breaches_;  // learned-eviction numbers of recent budget breaches
+  std::uint64_t real_since_ = 0;        // real hits since judging started (after the grace period)
+  std::uint64_t shadow_since_ = 0;      // shadow hits since judging started
+  std::uint64_t backoff_ = 1;           // cooldown multiplier
   Stats stats_;
 };
 
