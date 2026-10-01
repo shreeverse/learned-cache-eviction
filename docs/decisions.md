@@ -145,3 +145,22 @@ hook. A LightGBM model ignores both, but they let the same `LearnedPolicy` run w
 random scores (lower bound), and with fake models scored by key in tests. LightGBM will be built
 with `USE_OPENMP=OFF`: inference for one batch per eviction doesn't need threads, and LightGBM's
 OpenMP pool would give TSan false positives.
+
+## D15. Second trace: first 10M requests of Twitter cluster26 (M3)
+
+cloudPhysicsIO (113,872 requests) is too small to train a model on half of it. The Twitter traces
+are large (cluster26, the smallest, is 784 MB compressed; cluster52 is 92 GB), so
+`tools/fetch_traces.sh` keeps the **first 10M requests** of cluster26 as an uncompressed 240 MB
+file, checksum-pinned. **Rejected:** random or spatial sampling, which would break the time order
+that the time split (D10) depends on. Measured stats of the prefix: 10,000,000 requests,
+778,770 unique objects (median 145 bytes), 104 MiB working set, about 11 hours of traffic, and
+92.2% hit rate for an infinite cache.
+
+## D16. LightGBM 4.5.0, not the latest (M3)
+
+LightGBM 4.6.0 and 4.7.0 require CMake 3.28; Ubuntu 22.04 (this machine and the planned CI image)
+ships 3.22. 4.5.0 needs 3.18. The model file format is shared across 4.x, but Python training and
+C++ inference both pin **4.5.0** so the trainer and the predictor are the same code. The C++ side
+builds from the 4.5.0 Python sdist (1.7 MB, includes the C++ sources and vendored Eigen/fmt) rather
+than the 175 MB "complete source" release asset. **Rejected:** upgrading CMake through pip, which
+would make every build depend on a venv.
