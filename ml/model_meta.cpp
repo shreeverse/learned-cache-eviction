@@ -20,7 +20,11 @@ std::optional<FeatureConfig> read_feature_meta(const std::string& file) {
   for (std::string line; std::getline(in, line);) {
     if (line.empty()) continue;
     const auto eq = line.find('=');
-    if (eq == std::string::npos) throw std::runtime_error(file + ".meta: bad line '" + line + "'");
+    if (eq == std::string::npos) {
+      std::string msg = file;
+      msg.append(".meta: bad line '").append(line).append("'");
+      throw std::runtime_error(msg);
+    }
     const std::string key = line.substr(0, eq);
     const std::string value = line.substr(eq + 1);
     try {
@@ -31,10 +35,14 @@ std::optional<FeatureConfig> read_feature_meta(const std::string& file) {
       } else if (key == "normalize") {
         c.normalize = value == "1";
       } else {
-        throw std::runtime_error(file + ".meta: unknown key '" + key + "'");
+        std::string msg = file;
+        msg.append(".meta: unknown key '").append(key).append("'");
+        throw std::runtime_error(msg);
       }
     } catch (const std::logic_error&) {  // stoull / stod
-      throw std::runtime_error(file + ".meta: bad value in '" + line + "'");
+      std::string msg = file;
+      msg.append(".meta: bad value in '").append(line).append("'");
+      throw std::runtime_error(msg);
     }
     ++seen;
   }
