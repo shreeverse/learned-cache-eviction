@@ -45,3 +45,14 @@ These match libCacheSim so the M1 LRU cross-check can be an exact comparison.
 - Fields are read with `memcpy`, never by casting the buffer pointer, which would be an unaligned access (UB).
 - String keys (CSV) are hashed with FNV-1a 64-bit, not `std::hash`, so results are the same on every
   platform and standard library.
+
+## D5. Running TSan on WSL2 (tooling)
+
+The TSan runtime shipped with GCC 11 / LLVM 14 aborts on this kernel with
+`FATAL: ThreadSanitizer: unexpected memory mapping`, because the kernel uses more ASLR entropy than that
+runtime supports. Workaround without root: run TSan tests with ASLR disabled for that process:
+
+    setarch "$(uname -m)" -R ctest --preset tsan
+
+GoogleTest discovery is set to `PRE_TEST` so the build itself never has to execute a TSan binary.
+(Alternatives: `sudo sysctl vm.mmap_rnd_bits=28`, or a newer compiler whose TSan supports this.)
