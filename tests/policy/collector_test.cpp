@@ -25,6 +25,7 @@ namespace {
 using FT = FeatureTracker;
 
 struct Row {
+  std::uint64_t eviction = 0;
   std::uint64_t now = 0;
   Key key = 0;
   std::vector<double> features;
@@ -47,12 +48,13 @@ std::vector<Row> parse(const std::string& csv, std::string& header) {
   std::string line;
   while (std::getline(in, line)) {
     const auto c = split(line);
-    EXPECT_EQ(c.size(), 3 + FT::kNumFeatures) << line;
-    Row r{.now = std::stoull(c[0]),
-          .key = std::stoull(c[1]),
+    EXPECT_EQ(c.size(), 4 + FT::kNumFeatures) << line;
+    Row r{.eviction = std::stoull(c[0]),
+          .now = std::stoull(c[1]),
+          .key = std::stoull(c[2]),
           .features = {},
           .next_distance = std::stoll(c.back())};
-    for (std::size_t j = 0; j < FT::kNumFeatures; ++j) r.features.push_back(std::stod(c[2 + j]));
+    for (std::size_t j = 0; j < FT::kNumFeatures; ++j) r.features.push_back(std::stod(c[3 + j]));
     rows.push_back(std::move(r));
   }
   return rows;
@@ -82,7 +84,7 @@ Collected collect(const std::vector<Key>& keys, std::uint64_t capacity, std::uin
 TEST(Collector, HeaderNamesEveryColumn) {
   std::ostringstream out;
   const RecordingPredictor rec(std::make_unique<AgePredictor>(), out);
-  std::string expected = "now,key";
+  std::string expected = "eviction,now,key";
   for (const auto name : FT::feature_names()) expected += "," + std::string(name);
   EXPECT_EQ(out.str(), expected + ",next_distance\n");
 }
@@ -104,7 +106,9 @@ TEST(Collector, LabelsAndFeaturesMatchABruteForceScanOfTheTrace) {
   EXPECT_EQ(c.rows, c.evictions * 8);
   ASSERT_EQ(rows.size(), c.rows);
 
-  for (const Row& r : rows) {
+  for (std::size_t i = 0; i < rows.size(); ++i) {
+    const Row& r = rows[i];
+    ASSERT_EQ(r.eviction, i / 8);  // every eviction recorded, 8 candidates each
     ASSERT_LT(r.now, keys.size());
     // Label: distance to the key's next request after `now`, or -1.
     std::int64_t expected = -1;
@@ -129,6 +133,9 @@ TEST(Collector, EveryNthEvictionIsRecorded) {
   const auto third = collect(keys, 20, 8, 3);
   EXPECT_EQ(third.evictions, all.evictions);  // recording never changes what is evicted
   EXPECT_EQ(third.rows, (all.evictions + 2) / 3 * 8);
+  std::string header;
+  const auto rows = parse(third.csv, header);
+  for (const Row& r : rows) ASSERT_EQ(r.eviction % 3, 0U);
 }
 
 TEST(Collector, NanFeaturesRoundTrip) {

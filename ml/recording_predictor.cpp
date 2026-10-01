@@ -30,7 +30,7 @@ RecordingPredictor::RecordingPredictor(std::unique_ptr<Predictor> inner, std::os
     : inner_(std::move(inner)), out_(out), every_(every) {
   if (!inner_) throw std::invalid_argument("RecordingPredictor: inner predictor is null");
   if (every_ == 0) throw std::invalid_argument("RecordingPredictor: every is 0");
-  out_ << "now,key";
+  out_ << "eviction,now,key";
   for (const std::string_view name : FeatureTracker::feature_names()) out_ << ',' << name;
   out_ << ",next_distance\n";
 }
@@ -44,9 +44,12 @@ void RecordingPredictor::observe(const Request& r) {
 void RecordingPredictor::predict(std::span<const Key> keys, std::span<const float> features,
                                  std::span<double> scores) {
   constexpr std::size_t kF = FeatureTracker::kNumFeatures;
-  if (evictions_++ % every_ == 0) {
+  const std::uint64_t eviction = evictions_++;
+  if (eviction % every_ == 0) {
     const std::uint64_t now = observed_ - 1;  // predict() always follows at least one observe()
     for (std::size_t i = 0; i < keys.size(); ++i) {
+      put(out_, eviction);
+      out_.put(',');
       put(out_, now);
       out_.put(',');
       put(out_, keys[i]);

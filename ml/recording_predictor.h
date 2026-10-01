@@ -16,7 +16,9 @@ namespace lcache {
 // `inner` score them. Plugged into LearnedPolicy with an AgePredictor, this is the collector: a
 // sampled-LRU cache whose rows come from the same sampling and feature code as inference.
 //
-// CSV columns: now, key, the FeatureTracker features (in feature_names() order), next_distance.
+// CSV columns: eviction, now, key, the FeatureTracker features (in feature_names() order),
+// next_distance. `eviction` numbers the evictions from 0 and groups one candidate set; one
+// request can cause many evictions (a large object), so `now` alone doesn't.
 // next_distance is the candidate's true next access minus now, or -1 if it is never requested
 // again within the replayed requests. `now` uses the same virtual clock as FeatureTracker: it
 // counts observe() calls (decisions D11).
