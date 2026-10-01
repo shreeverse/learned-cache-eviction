@@ -1,4 +1,7 @@
 # Start strict-but-practical; tighten (e.g. WarningsAsErrors) once the code base settles.
+# (No comments inside the folded Checks block below: YAML would treat them as part of the string.)
+# Disabled: pro-bounds-constant-array-index flags every std::array lookup by an enum index (e.g.
+# ARC's T1/T2/B1/B2 lists); out-of-bounds access is covered by ASan instead.
 Checks: >
   -*,
   bugprone-*,
@@ -7,6 +10,7 @@ Checks: >
   cppcoreguidelines-*,
   -cppcoreguidelines-avoid-magic-numbers,
   -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -cppcoreguidelines-pro-bounds-constant-array-index,
   -cppcoreguidelines-avoid-non-const-global-variables,
   misc-*,
   -misc-non-private-member-variables-in-classes,
