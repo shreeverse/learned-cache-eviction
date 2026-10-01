@@ -18,6 +18,7 @@ include(Deps)
 
 add_subdirectory(trace)
 add_subdirectory(sketch)
+add_subdirectory(ml)
 add_subdirectory(policy)
 add_subdirectory(sim)
 add_subdirectory(apps/cachesim)

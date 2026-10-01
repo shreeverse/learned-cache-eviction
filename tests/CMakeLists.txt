@@ -41,3 +41,9 @@ add_executable(sketch_test
 target_include_directories(sketch_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(sketch_test PRIVATE lc_sketch GTest::gtest_main lc_warnings)
 gtest_discover_tests(sketch_test)
+
+add_executable(ml_test
+  ml/feature_tracker_test.cpp)
+target_include_directories(ml_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(ml_test PRIVATE lc_ml GTest::gtest_main lc_warnings)
+gtest_discover_tests(ml_test)
