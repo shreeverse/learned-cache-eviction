@@ -14,7 +14,7 @@ void LfuPolicy::on_hit(const Request& r) {
   const auto old_bucket = e.bucket;
   // Buckets are sorted and have distinct frequencies, so freq+1 is either the next bucket or
   // doesn't exist yet (then create it right after the current one).
-  BucketIt next = std::next(old_bucket);
+  auto next = std::next(old_bucket);
   if (next == buckets_.end() || next->freq != old_bucket->freq + 1) {
     next = buckets_.insert(next, Bucket{old_bucket->freq + 1, {}});
   }
