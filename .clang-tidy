@@ -20,3 +20,10 @@ Checks: >
 WarningsAsErrors: ''
 HeaderFilterRegex: '^.*/(trace|policy|sim|sketch|ml|server|apps)/.*'
 FormatStyle: file
+CheckOptions:
+  # Allow single-line `if (x) return;` (Google style); multi-line bodies still need braces.
+  - key: readability-braces-around-statements.ShortStatementLines
+    value: 2
+  # GoogleTest's EXPECT_*/ASSERT_* macros expand into branches that inflate complexity.
+  - key: readability-function-cognitive-complexity.IgnoreMacros
+    value: true
