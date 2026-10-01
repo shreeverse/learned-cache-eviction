@@ -17,8 +17,8 @@ void OraclePredictor::predict(std::span<const Key> keys, std::span<const float> 
   }
 }
 
-void RandomPredictor::predict(std::span<const Key> keys, std::span<const float> /*features*/,
-                              std::span<double> scores) {
+void RandomPredictor::predict([[maybe_unused]] std::span<const Key> keys,
+                              std::span<const float> /*features*/, std::span<double> scores) {
   assert(scores.size() == keys.size());
   std::uniform_real_distribution<double> dist(0.0, 1.0);
   for (double& s : scores) s = dist(rng_);

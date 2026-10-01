@@ -47,7 +47,7 @@ class LearnedPolicy final : public EvictionPolicy {
   const FeatureTracker& tracker() const { return tracker_; }
 
  private:
-  void untrack(Key k);
+  void untrack(Key k);  // a no-op if k is not tracked
 
   std::unique_ptr<Predictor> predictor_;
   std::string name_;

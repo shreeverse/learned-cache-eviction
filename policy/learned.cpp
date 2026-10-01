@@ -75,13 +75,12 @@ Key LearnedPolicy::evict() {
   return victim;
 }
 
-void LearnedPolicy::on_remove(Key k) {
-  if (pos_.contains(k)) untrack(k);
-}
+void LearnedPolicy::on_remove(Key k) { untrack(k); }
 
 void LearnedPolicy::untrack(Key k) {
   // Swap-remove: move the last key into k's slot so keys_ stays dense for O(1) sampling.
   const auto it = pos_.find(k);
+  if (it == pos_.end()) return;
   const std::size_t i = it->second;
   const Key moved = keys_.back();
   keys_[i] = moved;
