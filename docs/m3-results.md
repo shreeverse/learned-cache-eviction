@@ -104,3 +104,56 @@ the rest below 4% each.
 - **W-TinyLFU is 9.72 pp (4 MiB) and 9.20 pp (16 MiB) below LRU.** Unexpected; not yet investigated.
 - **The learned policy is slow:** the two-policy run above took 8 min 23 s, while the 12-run
   baseline sweep took 85 s. Step 8 measures time per eviction.
+
+## Diagnosis: why the first model is below random (Twitter, 1 MiB)
+
+Measured 2026-10-01 at commit `e56ee7f`, with `tools/m3_diagnosis.sh` (all runs in parallel, 21 min
+42 s). Same protocol as above: train on the first 5M requests, hit rate on the last 5M. v1 is the
+model from steps 5–7 (49.05%).
+
+| experiment | learned hit rate | change vs v1 |
+|---|---|---|
+| 1a. Without `log_size` (column set to NaN in training) | 49.59% | +0.54 pp |
+| 1b. Unit sizes, 7,000 objects (`--ignore-size`), retrained | 47.44% | n/a, see below |
+| 2. Retrained on on-policy data (v1 drives the cache) | 53.29% | +4.24 pp |
+| 2. Retrained on LRU data + on-policy data pooled | **54.30%** | **+5.25 pp** |
+| 3. Binary label, horizon 6,000 / 12,000 / 25,000 | 41.91% / 49.44% / 26.15% | −7.14 / +0.39 / −22.90 pp |
+
+Unit-size baselines at 7,000 objects: LRU 60.02%, W-TinyLFU 60.43%, random-sampled 71.31%,
+oracle-sampled 89.91%, Belady 90.14%. So with unit sizes, the learned policy is also below LRU
+(−12.58 pp) and random (−23.87 pp).
+
+Offline, the mean log1p(true distance) of the victim each scorer would pick (higher is better;
+v1 validation rows, from the LRU-driven cache): oracle 16.076, v1 11.775, random 10.366, sampled LRU
+10.287. **Offline, v1 picks better victims than random; online it is far worse.**
+
+### Findings
+
+1. **Object size is not the cause.** Removing `log_size` changes little (+0.54 pp), and with unit
+   sizes the same failure appears.
+2. **Binary labels don't help** at any of the three horizons.
+3. **Root cause 1: distribution shift. The model never saw old keys, so it keeps dead ones.**
+   Comparing candidates in the cache that sampled LRU drives (training data) with the cache v1 drives:
+
+   | | LRU-driven (training) | v1-driven |
+   |---|---|---|
+   | candidate age, p50 / p99 / max | 2,556 / 8,165 / 13,495 | 446 / 1,681,838 / 4,848,256 |
+   | age p50, keys never requested again | 2,767 | 37,249 |
+   | age p50, keys requested again | 2,520 | 380 |
+   | evictions with at least one never-again candidate | 98.4% | 98.1% |
+   | v1's victim is a never-again key | 24.6% | 14.0% |
+
+   Under v1, never-requested-again keys stay in the cache up to 4.8M requests old, while v1 evicts
+   young keys (victim age p50 297). It picks a dead key less often (14.0%) than a random choice
+   would (16.1% of candidates are dead). The training data never had a candidate older than 13,495,
+   and the model's prediction is flat beyond about age 1,000 (probed by varying only `age` on a
+   typical row), so a 4.8M-old key looks like a 5,000-old one. Retraining on the cache the model
+   itself produces (experiment 2) removes part of this: +4.24 / +5.25 pp.
+4. **Root cause 2 (measured, fix not yet tested): history dropped on eviction (D13) starves the
+   features.** In the training data, 83.5% of candidates have a shorter history than the trace
+   shows, and 38.5% have no gaps at all. Of those, 92.1% had been requested before; only 7.9% are
+   new. So `delta_*`, `count` and `edc_*` mostly describe the time since the latest insert, not the
+   key's real access pattern.
+5. **Hypothesis rejected: fixed-period keys.** Distances to the next access are concentrated
+   (p10–p90 6,191–17,868) and Spearman(age, distance) is −0.26, but only 15.2% of re-requests come
+   within 10% of the key's previous gap, so most keys aren't strictly periodic.
