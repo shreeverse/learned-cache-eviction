@@ -1,0 +1,36 @@
+trace,bytes,policy,hit_rate
+Twitter cluster26 (test split),524288,lru,49.56532
+Twitter cluster26 (test split),524288,wtinylfu,49.107279999999996
+Twitter cluster26 (test split),524288,random-sampled,49.50024
+Twitter cluster26 (test split),524288,belady,64.41940000000001
+Twitter cluster26 (test split),524288,learned,47.76388
+Twitter cluster26 (test split),1048576,lru,51.572399999999995
+Twitter cluster26 (test split),1048576,wtinylfu,55.58048
+Twitter cluster26 (test split),1048576,random-sampled,60.225640000000006
+Twitter cluster26 (test split),1048576,belady,81.97312
+Twitter cluster26 (test split),1048576,learned,68.0788
+Twitter cluster26 (test split),2097152,lru,83.38768
+Twitter cluster26 (test split),2097152,wtinylfu,73.25663999999999
+Twitter cluster26 (test split),2097152,random-sampled,77.54156
+Twitter cluster26 (test split),2097152,belady,90.80308000000001
+Twitter cluster26 (test split),2097152,learned,85.605
+Twitter cluster26 (test split),4194304,lru,91.93728
+Twitter cluster26 (test split),4194304,wtinylfu,82.11216
+Twitter cluster26 (test split),4194304,random-sampled,87.98568
+Twitter cluster26 (test split),4194304,belady,92.38256
+Twitter cluster26 (test split),4194304,learned,91.90596
+cloudPhysicsIO (second half),67108864,lru,16.53611072
+cloudPhysicsIO (second half),67108864,wtinylfu,19.45342139
+cloudPhysicsIO (second half),67108864,random-sampled,16.33412955
+cloudPhysicsIO (second half),67108864,belady,23.897007170000002
+cloudPhysicsIO (second half),67108864,learned,17.98334973
+cloudPhysicsIO (second half),268435456,lru,20.363214839999998
+cloudPhysicsIO (second half),268435456,wtinylfu,32.00611213
+cloudPhysicsIO (second half),268435456,random-sampled,21.40824786
+cloudPhysicsIO (second half),268435456,belady,38.1235071
+cloudPhysicsIO (second half),268435456,learned,25.122945060000003
+cloudPhysicsIO (second half),1073741824,lru,36.57791204
+cloudPhysicsIO (second half),1073741824,wtinylfu,57.71216805
+cloudPhysicsIO (second half),1073741824,random-sampled,49.5398342
+cloudPhysicsIO (second half),1073741824,belady,76.23998876
+cloudPhysicsIO (second half),1073741824,learned,58.54116902999999

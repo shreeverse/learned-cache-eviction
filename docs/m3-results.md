@@ -1,5 +1,7 @@
 # Milestone 3 results
 
+The summary is at the end ("M3 summary"); sections are in the order they were measured.
+
 All numbers below were measured with the `release` build. Hit rates are over the **second half**
 of the trace only: the first half warms the cache and will be the training set (decisions D10).
 So these numbers are **not comparable with the M2 tables**, which count every request from a cold
@@ -256,3 +258,131 @@ before this was run; reg_lr was declared in advance as the cheaper variant. Trai
 **Not yet shown:** other cache sizes, other traces (cloudPhysicsIO has not been rerun with this
 pipeline), seed variation, and metadata memory (the 10k-key window is not charged to the
 cache's 1 MiB).
+
+## Step 8: per-eviction latency (Google Benchmark)
+
+`build/release/bench/eviction_bench --benchmark_min_time=1s --benchmark_repetitions=5`, measured
+2026-10-01 at commit `2acb602` on an i7-12700H (WSL2, 20 threads, L1d 48 KiB, L2 1.25 MiB).
+Medians of 5 repetitions. Each policy is first warmed with the first 300k Twitter requests at
+1 MiB; one iteration = `evict()` + re-inserting the victim. Variation between repetitions was
+2–9% for the compiled path and up to 39% for some LightGBM runs (load average 1.78 during the
+run), so LightGBM numbers are approximate.
+
+**Time per eviction (µs, median):**
+
+| policy | k = 16 | k = 32 | k = 64 |
+|---|---|---|---|
+| LRU | 0.06 | | |
+| W-TinyLFU | 0.11 | | |
+| random-sampled (sampling + features, no model) | 1.89 | 3.46 | 10.50 |
+| learned 32 × 31, LightGBM library | 15.39 | 39.31 | 87.44 |
+| **learned 32 × 31, compiled** | **11.23** | **23.13** | **49.02** |
+| learned 128 × 63, LightGBM library | 75.95 | 168.69 | 548.30 |
+| **learned 128 × 63, compiled** | **53.82** | **106.88** | **222.60** |
+
+**Model only (`predict()` on k feature rows, µs):** 32 × 31: LightGBM 31.89 / 66.61 / 139.80,
+compiled 10.39 / 18.81 / 43.85; 128 × 63: LightGBM 180.22 / 402.53 / 749.83, compiled
+51.83 / 97.77 / 207.20. These rows come from a tracker with no memory window, so they don't
+match the eviction rows exactly; for LightGBM they cost more than the rows of real evictions
+(LightGBM's per-row cost depends on the values). The eviction table is the number that matters.
+
+The compiled evaluator (D19) is 1.8× (32 × 31) and 2.5× (128 × 63) faster per eviction than
+LightGBM at k = 64, with bit-identical scores. Even so, the learned policy is still about 100×
+(32 × 31, k = 16) to 2,000× (128 × 63, k = 64) slower per eviction than W-TinyLFU. At k = 64,
+sampling and feature computation alone take 10.5 µs.
+
+## Step 8: hit rate vs latency (dev split, Twitter, 1 MiB)
+
+Hit rates from `tools/m3_tradeoff.sh` (compiled predictor; the k = 64 runs reproduce the earlier
+LightGBM runs' hit counts exactly, 1,522,004 and 1,605,454). Latency from the table above.
+
+| configuration | dev hit rate | µs per eviction |
+|---|---|---|
+| LRU | 51.11% | 0.06 |
+| W-TinyLFU | 54.91% | 0.11 |
+| random-sampled, k = 16 / 32 / 64 | 58.21% / 58.34% / 58.60% | 1.89 / 3.46 / 10.50 |
+| learned 32 × 31, k = 16 | 60.72% | 11.23 |
+| learned 32 × 31, k = 32 | 60.99% | 23.13 |
+| learned 32 × 31, k = 64 | 60.88% | 49.02 |
+| learned 128 × 63, k = 16 | 63.60% | 53.82 |
+| learned 128 × 63, k = 32 | 64.14% | 106.88 |
+| learned 128 × 63, k = 64 | 64.22% | 222.60 |
+
+![Latency vs hit rate](img/m3_latency_tradeoff.png)
+
+- **k barely matters for hit rate:** k = 16 loses at most 0.62 pp vs k = 64 (128 × 63), and the
+  32 × 31 model is flat (60.72–60.99%). Latency scales with k, so k = 16 is the sensible default.
+- **Model size is the real trade-off:** 128 × 63 at k = 64 vs 32 × 31 at k = 32 is +3.23 pp for
+  9.6× the time per eviction (222.60 vs 23.13 µs). At k = 16: +2.88 pp for 4.8× (53.82 vs 11.23 µs).
+- 32 × 31 at k = 64 is dominated: k = 32 is both faster and slightly better.
+- Recommended runtime settings (`models/README.md`): `--sample-size 16`; 128 × 63 when about
+  54 µs per eviction is acceptable, 32 × 31 when 11 µs is the limit. M4 sets the actual time budget.
+
+## Step 9: other cache sizes and the second trace
+
+Same pipeline as D18 at every size (LRU + random collector data, history 10k, `--every 50`),
+nothing tuned per size. Twitter: test split (7.5M–10M); cloudPhysicsIO: second half (trained on
+the first; `--every 1` because the trace is 88× shorter, set before running). Scripts:
+`tools/m3_sizes.sh`, `tools/m3_cloudphysics.sh`. "As-is" = the 1 MiB models used unchanged.
+
+**Twitter cluster26, test split, hit rate:**
+
+| policy | 512 KiB | 1 MiB | 2 MiB | 4 MiB |
+|---|---|---|---|---|
+| LRU | 49.57% | 51.57% | 83.39% | 91.94% |
+| W-TinyLFU | 49.11% | 55.58% | 73.26% | 82.11% |
+| random-sampled | 49.50% | 60.23% | 77.54% | 87.99% |
+| learned 32 × 31, as-is | 45.09% | 65.21% | 86.39% | 89.59% |
+| learned 128 × 63, as-is | 48.73% | 68.08% | 85.45% | 88.49% |
+| learned 32 × 31, retrained at size | 45.94% | (= as-is) | **86.59%** | 91.60% |
+| learned 128 × 63, retrained at size | 47.76% | (= as-is) | 85.61% | 91.91% |
+| oracle-sampled | 64.00% | 81.20% | 90.65% | 92.38% |
+| Belady | 64.42% | 81.97% | 90.80% | 92.38% |
+
+**cloudPhysicsIO, second half, hit rate:**
+
+| policy | 64 MiB | 256 MiB | 1 GiB |
+|---|---|---|---|
+| LRU | 16.54% | 20.36% | 36.58% |
+| W-TinyLFU | 19.45% | 32.01% | 57.71% |
+| random-sampled | 16.33% | 21.41% | 49.54% |
+| learned 32 × 31 | 18.25% | 23.86% | 48.80% |
+| learned 128 × 63 | 17.98% | 25.12% | 58.54% |
+| oracle-sampled | 23.59% | 37.57% | 76.02% |
+| Belady | 23.90% | 38.12% | 76.24% |
+
+![Hit rate vs cache size](img/m3_hit_rate_vs_size.png)
+
+(The chart shows the 128 × 63 model, retrained at each size; the values are in
+`docs/img/m3_hit_rate_vs_size.csv`.)
+
+**What this shows: the learned policy does not generalize across sizes or traces yet.**
+- Twitter: it wins clearly at 1 MiB (+7.85 pp over the best baseline) and at 2 MiB (+3.20 pp,
+  32 × 31 retrained), ties LRU at 4 MiB (−0.03 pp; Belady is only 0.44 pp above LRU there), and
+  **loses at 512 KiB** (best: −0.84 pp vs LRU, with the 1 MiB model as-is; retraining at 512 KiB
+  does not help).
+- Retraining at the target size matters at 4 MiB (+3.4 pp for 128 × 63 vs as-is) but not at
+  512 KiB or 2 MiB.
+- cloudPhysicsIO: **below W-TinyLFU at 64 MiB (−1.47 pp) and 256 MiB (−6.89 pp)**, slightly
+  above at 1 GiB (+0.83 pp), with the 128 × 63 model. That trace has 56,936 training requests,
+  88× fewer than Twitter's 5M.
+- Everything here (window size, data mix, model size, sample rate) was chosen at Twitter, 1 MiB.
+  Untested explanations for the losses: the 10k-key window is fixed while cache size changes by
+  8×; too little training data on cloudPhysicsIO; at 512 KiB, eviction pressure is highest and
+  W-TinyLFU / LRU / random are within 0.46 pp of each other, so recency and frequency are all
+  weak signals there.
+- W-TinyLFU is 9.83 pp below LRU at 4 MiB on the test split too (82.11% vs 91.94%); still not
+  investigated.
+
+![Diagnosis](img/m3_diagnosis.png)
+
+## M3 summary
+
+- Done criterion (hit-rate comparison graph vs W-TinyLFU and Belady): met, figures above,
+  produced by `tools/plot_m3.py` from the measured outputs.
+- **Best result:** Twitter cluster26, 1 MiB, test split: learned (128 × 63) **68.08%** vs
+  W-TinyLFU 55.58% and Belady 81.97% (closes 47.4% of the gap between them).
+- **It is not a general win:** it loses to LRU at 512 KiB and to W-TinyLFU on cloudPhysicsIO
+  at 64 MiB and 256 MiB.
+- **Cost:** 11–223 µs per eviction depending on model and k (compiled), vs 0.11 µs for
+  W-TinyLFU. M4's fallback and time budget have to handle both the cost and the losses.

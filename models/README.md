@@ -21,3 +21,19 @@ build/release/apps/export/lcache-export -t $T -c 1MiB -n 5000000 --every 50 --hi
 .venv/bin/python tools/train.py lru.csv random.csv --window 5000000 --num-trees 128 --num-leaves 63 \
     -o twitter26_1MiB_h10k_128x63.txt
 ```
+
+## Runtime settings
+
+Measured trade-offs are in docs/m3-results.md ("Step 8"). Recommended:
+
+```
+cachesim -p learned --model models/twitter26_1MiB_h10k_128x63.txt --history 10000 --sample-size 16
+```
+
+k = 16 loses at most 0.62 pp of hit rate vs k = 64 and is about 4× faster (53.8 vs 222.6 µs per
+eviction for 128 × 63). Use the 32 × 31 model where about 11 µs per eviction is the limit
+(60.72% vs 63.60% on the dev split). The default predictor (`compiled`) gives exactly
+LightGBM's scores; `--predictor lightgbm` is about 2× slower.
+
+These models were trained at 1 MiB on one trace: they lose to LRU at 512 KiB and the pipeline
+loses to W-TinyLFU on cloudPhysicsIO at 64 and 256 MiB (docs/m3-results.md, "Step 9").
