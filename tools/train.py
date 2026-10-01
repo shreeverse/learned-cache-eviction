@@ -5,6 +5,9 @@
 
 Target: log1p(distance to next access), regression (decisions D12). Rows whose key is not
 requested again within the exported window (next_distance = -1) get distance 2 * window.
+Diagnosis options: --objective binary --horizon H (label = distance > H), and
+--ignore-features (those columns are set to NaN, so the model can't use them but keeps all
+feature names, which the C++ predictor checks).
 
 Validation is a time split inside the training window: the last --valid-frac of evictions.
 Besides RMSE it reports what the policy actually needs, the *eviction accuracy*: within each
@@ -31,10 +34,13 @@ FEATURES = (
 
 def parse_args():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("csv", help="training rows written by lcache-export")
+    p.add_argument("csv", nargs="+", help="training rows written by lcache-export (several = pooled)")
     p.add_argument("-o", "--out", required=True, help="where to write the LightGBM model (text)")
     p.add_argument("--window", type=int, required=True,
                    help="number of requests the export replayed (its -n); sets the never-again cap")
+    p.add_argument("--objective", choices=["regression", "binary"], default="regression")
+    p.add_argument("--horizon", type=int, help="binary: label 1 if distance > horizon")
+    p.add_argument("--ignore-features", nargs="*", default=[], choices=FEATURES)
     p.add_argument("--valid-frac", type=float, default=0.2)
     p.add_argument("--num-trees", type=int, default=32)
     p.add_argument("--num-leaves", type=int, default=31)
@@ -62,13 +68,34 @@ def eviction_accuracy(eviction, true_dist, score):
     return float((chosen["true"].to_numpy() == best_true.loc[chosen.index].to_numpy()).mean())
 
 
+def victim_quality(eviction, true_dist, score):
+    """Mean log1p(true distance) of the victim each eviction would choose (higher = better).
+
+    Unlike eviction_accuracy, this also counts how far off a wrong choice is."""
+    df = pd.DataFrame({"eviction": eviction, "y": np.log1p(true_dist), "score": score})
+    return float(df.loc[df.groupby("eviction")["score"].idxmax(), "y"].mean())
+
+
 def main():
     args = parse_args()
+    if args.objective == "binary" and args.horizon is None:
+        sys.exit("--objective binary needs --horizon")
     t0 = time.time()
-    df = load(args.csv)
+    frames = []
+    offset = 0
+    for path in args.csv:  # keep eviction ids unique across pooled files, in file order
+        part = load(path)
+        part["eviction"] += offset
+        offset = int(part["eviction"].max()) + 1
+        frames.append(part)
+    df = pd.concat(frames, ignore_index=True)
     cap = 2 * args.window
     dist = np.where(df["next_distance"] < 0, cap, df["next_distance"]).astype(np.float64)
-    y = np.log1p(dist)
+    if args.objective == "binary":
+        y = (dist > args.horizon).astype(np.float64)
+        print(f"binary label: distance > {args.horizon:,} for {y.mean():.1%} of rows")
+    else:
+        y = np.log1p(dist)
     print(f"rows {len(df):,}  evictions {df['eviction'].nunique():,}  "
           f"never-again {np.mean(df['next_distance'] < 0):.1%}  (loaded in {time.time() - t0:.1f}s)")
 
@@ -76,12 +103,14 @@ def main():
     # on eviction keeps every candidate set whole.
     split = df["eviction"].quantile(1 - args.valid_frac)
     is_train = (df["eviction"] < split).to_numpy()
-    X = df[FEATURES]
+    X = df[FEATURES].copy()
+    for f in args.ignore_features:
+        X[f] = np.nan  # all-missing: LightGBM can't split on it
     train = lgb.Dataset(X[is_train], y[is_train], feature_name=FEATURES, free_raw_data=False)
     valid = lgb.Dataset(X[~is_train], y[~is_train], reference=train)
 
     params = {
-        "objective": "regression",
+        "objective": args.objective,
         "num_leaves": args.num_leaves,
         "learning_rate": args.learning_rate,
         "num_threads": args.threads,
@@ -97,15 +126,26 @@ def main():
 
     pred = booster.predict(X[~is_train])
     y_valid = y[~is_train]
-    rmse = float(np.sqrt(np.mean((pred - y_valid) ** 2)))
-    rmse_const = float(np.sqrt(np.mean((y[is_train].mean() - y_valid) ** 2)))
     v = df[~is_train]
-    acc_model = eviction_accuracy(v["eviction"].to_numpy(), dist[~is_train], pred)
-    acc_age = eviction_accuracy(v["eviction"].to_numpy(), dist[~is_train], v["age"].to_numpy())
-
+    ev = v["eviction"].to_numpy()
+    d_valid = dist[~is_train]
     print(f"validation: {(~is_train).sum():,} rows, {v['eviction'].nunique():,} evictions")
-    print(f"  RMSE log1p(distance): model {rmse:.4f}   predict-the-mean {rmse_const:.4f}")
+    if args.objective == "regression":
+        rmse = float(np.sqrt(np.mean((pred - y_valid) ** 2)))
+        rmse_const = float(np.sqrt(np.mean((y[is_train].mean() - y_valid) ** 2)))
+        print(f"  RMSE log1p(distance): model {rmse:.4f}   predict-the-mean {rmse_const:.4f}")
+    else:
+        acc = float(np.mean((pred > 0.5) == (y_valid > 0.5)))
+        print(f"  classification accuracy: model {acc:.2%}   majority class "
+              f"{max(y_valid.mean(), 1 - y_valid.mean()):.2%}")
+    acc_model = eviction_accuracy(ev, d_valid, pred)
+    acc_age = eviction_accuracy(ev, d_valid, v["age"].to_numpy())
     print(f"  eviction accuracy:    model {acc_model:.2%}   sampled LRU (max age) {acc_age:.2%}")
+    rand = pd.DataFrame({"e": ev, "y": np.log1p(d_valid)}).groupby("e")["y"]
+    print("  victim mean log1p(distance), higher is better:")
+    print(f"    oracle {rand.max().mean():.3f}   model {victim_quality(ev, d_valid, pred):.3f}   "
+          f"sampled LRU {victim_quality(ev, d_valid, v['age'].to_numpy()):.3f}   "
+          f"random {rand.mean().mean():.3f}")
 
     gain = booster.feature_importance(importance_type="gain")
     print("feature importance (share of total gain):")

@@ -5,6 +5,9 @@
 //
 // Use -n to export only the training prefix, so labels never look into the evaluation half
 // (decisions D10). See docs/m3-design.md section 5.
+//
+// With --model, that model chooses the victims instead of sampled LRU ("on-policy" data: the
+// candidates come from the cache the learned policy itself produces).
 
 #include <CLI/CLI.hpp>
 #include <cstdint>
@@ -16,6 +19,9 @@
 #include <utility>
 
 #include "apps/cachesim/size_parse.h"
+#ifdef LC_HAVE_LIGHTGBM
+#include "ml/lightgbm_predictor.h"
+#endif
 #include "ml/predictor.h"
 #include "ml/recording_predictor.h"
 #include "policy/learned.h"
@@ -34,6 +40,7 @@ int run(int argc, char** argv) {
   std::uint64_t max_requests = 0;
   lcache::LearnedOptions options;
   std::uint32_t every = 1;
+  std::string model_path;
   std::string out_path;
 
   app.add_option("-t,--trace", trace_path, "Trace file")->required()->check(CLI::ExistingFile);
@@ -52,6 +59,9 @@ int run(int argc, char** argv) {
   app.add_option("--every", every, "Record the candidates of every N-th eviction")
       ->capture_default_str()
       ->check(CLI::PositiveNumber);
+  app.add_option("--model", model_path,
+                 "LightGBM model that chooses victims (default: sampled LRU)")
+      ->check(CLI::ExistingFile);
   app.add_option("-o,--out", out_path, "Output CSV")->required();
 
   CLI11_PARSE(app, argc, argv);
@@ -60,8 +70,17 @@ int run(int argc, char** argv) {
   std::ofstream out(out_path);
   if (!out) throw std::runtime_error("cannot open output file: " + out_path);
 
-  auto recorder = std::make_unique<lcache::RecordingPredictor>(
-      std::make_unique<lcache::AgePredictor>(), out, every);
+  std::unique_ptr<lcache::Predictor> chooser;
+  if (model_path.empty()) {
+    chooser = std::make_unique<lcache::AgePredictor>();
+  } else {
+#ifdef LC_HAVE_LIGHTGBM
+    chooser = std::make_unique<lcache::LightGbmPredictor>(model_path);
+#else
+    throw std::runtime_error("--model needs a build with LC_WITH_LIGHTGBM=ON");
+#endif
+  }
+  auto recorder = std::make_unique<lcache::RecordingPredictor>(std::move(chooser), out, every);
   const lcache::RecordingPredictor& stats = *recorder;
   lcache::LearnedPolicy collector(std::move(recorder), "collector", options);
 
