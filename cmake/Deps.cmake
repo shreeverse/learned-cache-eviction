@@ -58,3 +58,23 @@ add_library(lc_asio INTERFACE)
 target_include_directories(lc_asio SYSTEM INTERFACE ${asio_SOURCE_DIR}/asio/include)
 target_compile_definitions(lc_asio INTERFACE ASIO_STANDALONE ASIO_NO_DEPRECATED)
 target_link_libraries(lc_asio INTERFACE Threads::Threads)
+
+# The simulation API (decisions D26): cpp-httplib (single header) and nlohmann/json. Both ship a
+# CMakeLists.txt that we skip (SOURCE_SUBDIR points nowhere): httplib's would link OpenSSL, zlib
+# or brotli if it happened to find them. We wrap the headers ourselves, as SYSTEM includes.
+FetchContent_Declare(httplib
+  URL https://github.com/yhirose/cpp-httplib/archive/refs/tags/v0.18.3.tar.gz
+  URL_HASH SHA256=a0567bcd6c3fe5cef1b329b96245119047f876b49e06cc129a36a7a8dffe173e
+  SOURCE_SUBDIR no-cmake)
+FetchContent_MakeAvailable(httplib)
+add_library(lc_httplib INTERFACE)
+target_include_directories(lc_httplib SYSTEM INTERFACE ${httplib_SOURCE_DIR})
+target_link_libraries(lc_httplib INTERFACE Threads::Threads)
+
+FetchContent_Declare(nlohmann_json
+  URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz
+  URL_HASH SHA256=d6c65aca6b1ed68e7a182f4757257b107ae403032760ed6ef121c9d55e81757d
+  SOURCE_SUBDIR no-cmake)
+FetchContent_MakeAvailable(nlohmann_json)
+add_library(lc_json INTERFACE)
+target_include_directories(lc_json SYSTEM INTERFACE ${nlohmann_json_SOURCE_DIR}/single_include)
