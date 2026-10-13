@@ -66,3 +66,8 @@ if(LC_WITH_LIGHTGBM)
   target_link_libraries(lightgbm_test PRIVATE lc_ml lc_policy lc_sim GTest::gtest_main lc_warnings)
   gtest_discover_tests(lightgbm_test)
 endif()
+
+add_executable(server_test
+  server/resp_test.cpp)
+target_link_libraries(server_test PRIVATE lc_server GTest::gtest_main lc_warnings)
+gtest_discover_tests(server_test)
