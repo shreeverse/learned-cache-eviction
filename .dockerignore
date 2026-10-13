@@ -1,0 +1,12 @@
+# Build context for api/Dockerfile: only the C++ sources and models are needed. Traces (1 GB) are
+# mounted at run time instead (decisions D28).
+.git
+.venv
+build
+data
+docs
+web
+tests
+bench
+tools
+**/__pycache__

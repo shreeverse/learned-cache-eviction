@@ -1,0 +1,37 @@
+# The full stack (decisions D28):
+#   tools/fetch_traces.sh         # traces into ./data (once)
+#   docker compose up --build     # dashboard: http://localhost:3000, API: http://localhost:8000
+# Ports are bound to 127.0.0.1, so nothing is exposed on the network.
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ./data:/app/data:ro
+    # The runtime image has no curl; bash's /dev/tcp is enough for one request.
+    healthcheck:
+      test:
+        - CMD
+        - bash
+        - -c
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/8000
+          && printf 'GET /api/health HTTP/1.0\r\n\r\n' >&3
+          && grep -q '"ok"' <&3
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  web:
+    build: ./web
+    ports:
+      - "127.0.0.1:3000:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
