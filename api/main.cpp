@@ -2,8 +2,8 @@
 //
 //   lcache-api --data-dir data --model models/twitter26_1MiB_h10k_32x31.txt --port 8080
 //
-// Routes: GET /api/traces, GET /api/policies, POST /api/simulate. Errors are {"error": "..."}.
-// All logic is in lc_api (api/api.h); this file only maps routes and exceptions to HTTP.
+// Routes are in api/routes.h; all logic is in lc_api (api/api.h). This file handles options,
+// signals and startup.
 
 #include <httplib.h>
 #include <pthread.h>
@@ -13,20 +13,13 @@
 #include <exception>
 #include <iostream>
 #include <mutex>
-#include <nlohmann/json.hpp>
 #include <string>
 #include <thread>
 
 #include "api/api.h"
+#include "api/routes.h"
 
 namespace {
-
-using nlohmann::json;
-
-void send_json(httplib::Response& res, int status, const json& body) {
-  res.status = status;
-  res.set_content(body.dump(), "application/json");
-}
 
 int run(int argc, char** argv) {
   CLI::App app{"JSON HTTP API over the cache simulator"};
@@ -65,55 +58,8 @@ int run(int argc, char** argv) {
   }
 
   httplib::Server server;
-  server.set_payload_max_length(std::size_t{64} *
-                                1024);  // a simulate request is a few hundred bytes
-
-  server.Get("/api/traces", [&](const httplib::Request&, httplib::Response& res) {
-    send_json(res, 200, api.traces());
-  });
-  server.Get("/api/policies", [&](const httplib::Request&, httplib::Response& res) {
-    send_json(res, 200, api.policies());
-  });
-
-  // One simulation at a time (decisions D26): bounded memory and CPU; a second request gets 429.
-  std::mutex simulate_mutex;
-  server.Post("/api/simulate", [&](const httplib::Request& req, httplib::Response& res) {
-    const std::unique_lock lock(simulate_mutex, std::try_to_lock);
-    if (!lock.owns_lock()) {
-      send_json(res, 429, {{"error", "a simulation is already running; try again shortly"}});
-      return;
-    }
-    const json body = json::parse(req.body, nullptr, /*allow_exceptions=*/false);
-    if (body.is_discarded()) {
-      send_json(res, 400, {{"error", "body is not valid JSON"}});
-      return;
-    }
-    send_json(res, 200, api.simulate(body));
-  });
-
-  server.set_exception_handler(
-      [](const httplib::Request&, httplib::Response& res, const std::exception_ptr& ep) {
-        try {
-          std::rethrow_exception(ep);
-        } catch (const lcache::api::ApiError& e) {
-          send_json(res, e.status(), {{"error", e.what()}});
-        } catch (const std::exception& e) {
-          send_json(res, 500, {{"error", std::string("internal error: ") + e.what()}});
-        } catch (...) {
-          send_json(res, 500, {{"error", "internal error"}});
-        }
-      });
-  // httplib calls this for every status >= 400; only fill in a body where there is none
-  // (unknown route, payload too large, ...).
-  server.set_error_handler([](const httplib::Request& req, httplib::Response& res) {
-    if (res.body.empty()) {
-      send_json(res, res.status,
-                {{"error", std::string(httplib::status_message(res.status)) + ": " + req.path}});
-    }
-  });
-  server.set_logger([](const httplib::Request& req, const httplib::Response& res) {
-    std::cerr << req.method << ' ' << req.path << ' ' << res.status << '\n';
-  });
+  std::mutex busy;  // one simulation or window at a time (decisions D26)
+  lcache::api::register_routes(server, api, busy, &std::cerr);
 
   if (!server.bind_to_port(host, port)) {
     std::cerr << "lcache-api: cannot listen on " << host << ':' << port << '\n';
