@@ -1,0 +1,293 @@
+# config: lcache-guarded-t2 clients=50 pipeline=1 datasize=32
+ 
+                                                            
+                                                                      
+                                                                      
+                                                                      
+                                                                    
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                     
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                     
+                                                                     
+                                                                     
+                                                                      
+                                                                      
+                                                                      
+                                                                     
+                                                                     
+                                                                     
+                                                                     
+                                                                     
+                                                                     
+                                                                     
+                                                                     
+                                                                     
+                                                                     
+                                                                     
+                                                                     
+                                                                     
+                                                                     
+                                                                     
+                                                                     
+                                                                     
+                                                                     
+                                                                     
+                                                                     
+                                                                     
+                                                                     
+                                                                     
+                                                                     
+                                                                     
+                                                                     
+                                                                     
+                                                                     
+                                                                     
+                                                                     
+                                                                    
+                                                                    
+                                                                    
+                                                                    
+                                                                    
+                                                                    
+                                                                    
+                                                                    
+                                                                    
+                                                                    
+                                                                    
+                                                                    
+                                                                    
+                                                                    
+                                                                    
+                                                                    
+                                                                    
+                                                                    
+                                                                    
+                                                                    
+                                                                    
+                                                                    
+                                                                    
+                                                                    
+                                                                    
+                                                                    
+                                                                    
+                                                                    
+                                                                    
+                                                                    
+====== SET ======
+  2000000 requests completed in 23.72 seconds
+  50 parallel clients
+  32 bytes payload
+  keep alive: 1
+  host configuration "save": 
+  host configuration "appendonly": no
+  multi-thread: yes
+  threads: 4
+
+Latency by percentile distribution:
+0.000% <= 0.023 milliseconds (cumulative count 2)
+50.000% <= 0.343 milliseconds (cumulative count 1004997)
+75.000% <= 0.855 milliseconds (cumulative count 1504204)
+87.500% <= 1.039 milliseconds (cumulative count 1750430)
+93.750% <= 1.175 milliseconds (cumulative count 1876939)
+96.875% <= 1.295 milliseconds (cumulative count 1939353)
+98.438% <= 1.415 milliseconds (cumulative count 1969433)
+99.219% <= 1.575 milliseconds (cumulative count 1984469)
+99.609% <= 2.039 milliseconds (cumulative count 1992199)
+99.805% <= 4.383 milliseconds (cumulative count 1996108)
+99.902% <= 9.071 milliseconds (cumulative count 1998049)
+99.951% <= 10.719 milliseconds (cumulative count 1999027)
+99.976% <= 13.031 milliseconds (cumulative count 1999512)
+99.988% <= 14.927 milliseconds (cumulative count 1999759)
+99.994% <= 17.423 milliseconds (cumulative count 1999880)
+99.997% <= 26.079 milliseconds (cumulative count 1999941)
+99.998% <= 691.711 milliseconds (cumulative count 1999988)
+100.000% <= 693.247 milliseconds (cumulative count 2000000)
+100.000% <= 693.247 milliseconds (cumulative count 2000000)
+
+Cumulative distribution of latencies:
+1.275% <= 0.103 milliseconds (cumulative count 25507)
+10.118% <= 0.207 milliseconds (cumulative count 202354)
+44.155% <= 0.303 milliseconds (cumulative count 883102)
+55.391% <= 0.407 milliseconds (cumulative count 1107811)
+59.088% <= 0.503 milliseconds (cumulative count 1181763)
+61.927% <= 0.607 milliseconds (cumulative count 1238532)
+65.751% <= 0.703 milliseconds (cumulative count 1315018)
+71.884% <= 0.807 milliseconds (cumulative count 1437684)
+78.605% <= 0.903 milliseconds (cumulative count 1572107)
+85.625% <= 1.007 milliseconds (cumulative count 1712506)
+90.905% <= 1.103 milliseconds (cumulative count 1818097)
+94.880% <= 1.207 milliseconds (cumulative count 1897602)
+97.106% <= 1.303 milliseconds (cumulative count 1942113)
+98.406% <= 1.407 milliseconds (cumulative count 1968110)
+98.993% <= 1.503 milliseconds (cumulative count 1979851)
+99.296% <= 1.607 milliseconds (cumulative count 1985917)
+99.432% <= 1.703 milliseconds (cumulative count 1988637)
+99.516% <= 1.807 milliseconds (cumulative count 1990330)
+99.567% <= 1.903 milliseconds (cumulative count 1991346)
+99.602% <= 2.007 milliseconds (cumulative count 1992030)
+99.626% <= 2.103 milliseconds (cumulative count 1992528)
+99.698% <= 3.103 milliseconds (cumulative count 1993952)
+99.773% <= 4.103 milliseconds (cumulative count 1995469)
+99.843% <= 5.103 milliseconds (cumulative count 1996856)
+99.847% <= 6.103 milliseconds (cumulative count 1996940)
+99.850% <= 7.103 milliseconds (cumulative count 1996997)
+99.859% <= 8.103 milliseconds (cumulative count 1997177)
+99.904% <= 9.103 milliseconds (cumulative count 1998084)
+99.929% <= 10.103 milliseconds (cumulative count 1998574)
+99.960% <= 11.103 milliseconds (cumulative count 1999200)
+99.970% <= 12.103 milliseconds (cumulative count 1999408)
+99.976% <= 13.103 milliseconds (cumulative count 1999514)
+99.984% <= 14.103 milliseconds (cumulative count 1999678)
+99.989% <= 15.103 milliseconds (cumulative count 1999772)
+99.992% <= 16.103 milliseconds (cumulative count 1999850)
+99.994% <= 17.103 milliseconds (cumulative count 1999876)
+99.995% <= 18.111 milliseconds (cumulative count 1999903)
+99.996% <= 19.103 milliseconds (cumulative count 1999914)
+99.997% <= 26.111 milliseconds (cumulative count 1999947)
+99.997% <= 27.103 milliseconds (cumulative count 1999950)
+99.998% <= 691.199 milliseconds (cumulative count 1999953)
+99.999% <= 692.223 milliseconds (cumulative count 1999988)
+100.000% <= 693.247 milliseconds (cumulative count 2000000)
+
+Summary:
+  throughput summary: 84320.59 requests per second
+  latency summary (msec):
+          avg       min       p50       p95       p99       max
+        0.576     0.016     0.343     1.215     1.511   693.247
+ 
+                                                            
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                     
+                                                                      
+====== GET ======
+  2000000 requests completed in 11.79 seconds
+  50 parallel clients
+  32 bytes payload
+  keep alive: 1
+  host configuration "save": 
+  host configuration "appendonly": no
+  multi-thread: yes
+  threads: 4
+
+Latency by percentile distribution:
+0.000% <= 0.031 milliseconds (cumulative count 2)
+50.000% <= 0.231 milliseconds (cumulative count 1041417)
+75.000% <= 0.287 milliseconds (cumulative count 1528328)
+87.500% <= 0.343 milliseconds (cumulative count 1752614)
+93.750% <= 0.407 milliseconds (cumulative count 1881714)
+96.875% <= 0.463 milliseconds (cumulative count 1941903)
+98.438% <= 0.519 milliseconds (cumulative count 1970843)
+99.219% <= 0.607 milliseconds (cumulative count 1984623)
+99.609% <= 0.791 milliseconds (cumulative count 1992206)
+99.805% <= 1.071 milliseconds (cumulative count 1996137)
+99.902% <= 1.343 milliseconds (cumulative count 1998049)
+99.951% <= 1.647 milliseconds (cumulative count 1999033)
+99.976% <= 1.911 milliseconds (cumulative count 1999515)
+99.988% <= 2.199 milliseconds (cumulative count 1999756)
+99.994% <= 3.215 milliseconds (cumulative count 1999878)
+99.997% <= 6.703 milliseconds (cumulative count 1999939)
+99.998% <= 775.167 milliseconds (cumulative count 1999995)
+100.000% <= 775.679 milliseconds (cumulative count 1999997)
+100.000% <= 777.215 milliseconds (cumulative count 2000000)
+100.000% <= 777.215 milliseconds (cumulative count 2000000)
+
+Cumulative distribution of latencies:
+4.171% <= 0.103 milliseconds (cumulative count 83420)
+34.147% <= 0.207 milliseconds (cumulative count 682936)
+80.467% <= 0.303 milliseconds (cumulative count 1609347)
+94.086% <= 0.407 milliseconds (cumulative count 1881714)
+98.242% <= 0.503 milliseconds (cumulative count 1964850)
+99.231% <= 0.607 milliseconds (cumulative count 1984623)
+99.474% <= 0.703 milliseconds (cumulative count 1989485)
+99.626% <= 0.807 milliseconds (cumulative count 1992527)
+99.713% <= 0.903 milliseconds (cumulative count 1994252)
+99.774% <= 1.007 milliseconds (cumulative count 1995481)
+99.823% <= 1.103 milliseconds (cumulative count 1996463)
+99.864% <= 1.207 milliseconds (cumulative count 1997270)
+99.894% <= 1.303 milliseconds (cumulative count 1997871)
+99.915% <= 1.407 milliseconds (cumulative count 1998298)
+99.932% <= 1.503 milliseconds (cumulative count 1998631)
+99.946% <= 1.607 milliseconds (cumulative count 1998928)
+99.957% <= 1.703 milliseconds (cumulative count 1999133)
+99.968% <= 1.807 milliseconds (cumulative count 1999361)
+99.975% <= 1.903 milliseconds (cumulative count 1999507)
+99.981% <= 2.007 milliseconds (cumulative count 1999623)
+99.985% <= 2.103 milliseconds (cumulative count 1999698)
+99.993% <= 3.103 milliseconds (cumulative count 1999867)
+99.996% <= 4.103 milliseconds (cumulative count 1999916)
+99.997% <= 5.103 milliseconds (cumulative count 1999933)
+99.997% <= 6.103 milliseconds (cumulative count 1999936)
+99.997% <= 7.103 milliseconds (cumulative count 1999941)
+99.998% <= 8.103 milliseconds (cumulative count 1999958)
+100.000% <= 775.167 milliseconds (cumulative count 1999995)
+100.000% <= 776.191 milliseconds (cumulative count 1999997)
+100.000% <= 777.215 milliseconds (cumulative count 2000000)
+
+Summary:
+  throughput summary: 169649.69 requests per second
+  latency summary (msec):
+          avg       min       p50       p95       p99       max
+        0.262     0.024     0.231     0.423     0.567   777.215
+
+# server: lcache-server listening on 127.0.0.1:16500 (threads=2, shards=64, capacity=32MiB, policy=guarded)
+# server: hits=1398440 misses=601560 sets=2000000 evictions=240537 collisions=0 too_large=0
+# server: guard: learned_evictions=240537 fallback_evictions=0 hit_rate_trips=0 latency_trips=0 budget_breaches=0 retries=0 shards_in_learned_mode=64/64

@@ -1,0 +1,214 @@
+# config: lcache-lru-t2 clients=50 pipeline=1 datasize=32
+ 
+                                                           
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+====== SET ======
+  2000000 requests completed in 9.76 seconds
+  50 parallel clients
+  32 bytes payload
+  keep alive: 1
+  host configuration "save": 
+  host configuration "appendonly": no
+  multi-thread: yes
+  threads: 4
+
+Latency by percentile distribution:
+0.000% <= 0.023 milliseconds (cumulative count 1)
+50.000% <= 0.191 milliseconds (cumulative count 1050830)
+75.000% <= 0.239 milliseconds (cumulative count 1502086)
+87.500% <= 0.311 milliseconds (cumulative count 1763378)
+93.750% <= 0.383 milliseconds (cumulative count 1880156)
+96.875% <= 0.447 milliseconds (cumulative count 1941856)
+98.438% <= 0.511 milliseconds (cumulative count 1970211)
+99.219% <= 0.735 milliseconds (cumulative count 1984515)
+99.609% <= 1.175 milliseconds (cumulative count 1992210)
+99.805% <= 1.751 milliseconds (cumulative count 1996108)
+99.902% <= 3.415 milliseconds (cumulative count 1998052)
+99.951% <= 3.759 milliseconds (cumulative count 1999031)
+99.976% <= 3.959 milliseconds (cumulative count 1999520)
+99.988% <= 4.063 milliseconds (cumulative count 1999768)
+99.994% <= 5.239 milliseconds (cumulative count 1999878)
+99.997% <= 6.975 milliseconds (cumulative count 1999939)
+99.998% <= 7.135 milliseconds (cumulative count 1999970)
+99.999% <= 7.271 milliseconds (cumulative count 1999985)
+100.000% <= 7.351 milliseconds (cumulative count 1999995)
+100.000% <= 7.367 milliseconds (cumulative count 1999997)
+100.000% <= 7.399 milliseconds (cumulative count 2000000)
+100.000% <= 7.399 milliseconds (cumulative count 2000000)
+
+Cumulative distribution of latencies:
+14.865% <= 0.103 milliseconds (cumulative count 297300)
+62.027% <= 0.207 milliseconds (cumulative count 1240534)
+87.255% <= 0.303 milliseconds (cumulative count 1745099)
+95.343% <= 0.407 milliseconds (cumulative count 1906859)
+98.408% <= 0.503 milliseconds (cumulative count 1968156)
+99.015% <= 0.607 milliseconds (cumulative count 1980302)
+99.186% <= 0.703 milliseconds (cumulative count 1983712)
+99.320% <= 0.807 milliseconds (cumulative count 1986406)
+99.441% <= 0.903 milliseconds (cumulative count 1988827)
+99.522% <= 1.007 milliseconds (cumulative count 1990440)
+99.578% <= 1.103 milliseconds (cumulative count 1991560)
+99.624% <= 1.207 milliseconds (cumulative count 1992489)
+99.659% <= 1.303 milliseconds (cumulative count 1993172)
+99.693% <= 1.407 milliseconds (cumulative count 1993861)
+99.716% <= 1.503 milliseconds (cumulative count 1994322)
+99.749% <= 1.607 milliseconds (cumulative count 1994989)
+99.790% <= 1.703 milliseconds (cumulative count 1995790)
+99.819% <= 1.807 milliseconds (cumulative count 1996389)
+99.833% <= 1.903 milliseconds (cumulative count 1996662)
+99.842% <= 2.007 milliseconds (cumulative count 1996845)
+99.847% <= 2.103 milliseconds (cumulative count 1996937)
+99.876% <= 3.103 milliseconds (cumulative count 1997528)
+99.990% <= 4.103 milliseconds (cumulative count 1999801)
+99.994% <= 5.103 milliseconds (cumulative count 1999877)
+99.995% <= 6.103 milliseconds (cumulative count 1999907)
+99.998% <= 7.103 milliseconds (cumulative count 1999967)
+100.000% <= 8.103 milliseconds (cumulative count 2000000)
+
+Summary:
+  throughput summary: 204834.08 requests per second
+  latency summary (msec):
+          avg       min       p50       p95       p99       max
+        0.210     0.016     0.191     0.407     0.607     7.399
+ 
+                                                            
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+====== GET ======
+  2000000 requests completed in 8.51 seconds
+  50 parallel clients
+  32 bytes payload
+  keep alive: 1
+  host configuration "save": 
+  host configuration "appendonly": no
+  multi-thread: yes
+  threads: 4
+
+Latency by percentile distribution:
+0.000% <= 0.031 milliseconds (cumulative count 1)
+50.000% <= 0.159 milliseconds (cumulative count 1068478)
+75.000% <= 0.207 milliseconds (cumulative count 1513092)
+87.500% <= 0.263 milliseconds (cumulative count 1750486)
+93.750% <= 0.335 milliseconds (cumulative count 1878901)
+96.875% <= 0.407 milliseconds (cumulative count 1941898)
+98.438% <= 0.463 milliseconds (cumulative count 1969217)
+99.219% <= 0.543 milliseconds (cumulative count 1985008)
+99.609% <= 0.679 milliseconds (cumulative count 1992190)
+99.805% <= 0.895 milliseconds (cumulative count 1996171)
+99.902% <= 1.103 milliseconds (cumulative count 1998113)
+99.951% <= 1.271 milliseconds (cumulative count 1999034)
+99.976% <= 1.423 milliseconds (cumulative count 1999513)
+99.988% <= 1.575 milliseconds (cumulative count 1999761)
+99.994% <= 1.759 milliseconds (cumulative count 1999879)
+99.997% <= 2.719 milliseconds (cumulative count 1999939)
+99.998% <= 4.575 milliseconds (cumulative count 1999970)
+99.999% <= 5.127 milliseconds (cumulative count 1999985)
+100.000% <= 5.439 milliseconds (cumulative count 1999993)
+100.000% <= 5.567 milliseconds (cumulative count 1999997)
+100.000% <= 5.767 milliseconds (cumulative count 1999999)
+100.000% <= 5.791 milliseconds (cumulative count 2000000)
+100.000% <= 5.791 milliseconds (cumulative count 2000000)
+
+Cumulative distribution of latencies:
+22.351% <= 0.103 milliseconds (cumulative count 447019)
+75.655% <= 0.207 milliseconds (cumulative count 1513092)
+91.693% <= 0.303 milliseconds (cumulative count 1833859)
+97.095% <= 0.407 milliseconds (cumulative count 1941898)
+98.977% <= 0.503 milliseconds (cumulative count 1979535)
+99.472% <= 0.607 milliseconds (cumulative count 1989441)
+99.641% <= 0.703 milliseconds (cumulative count 1992810)
+99.743% <= 0.807 milliseconds (cumulative count 1994856)
+99.814% <= 0.903 milliseconds (cumulative count 1996280)
+99.867% <= 1.007 milliseconds (cumulative count 1997332)
+99.906% <= 1.103 milliseconds (cumulative count 1998113)
+99.937% <= 1.207 milliseconds (cumulative count 1998746)
+99.958% <= 1.303 milliseconds (cumulative count 1999169)
+99.974% <= 1.407 milliseconds (cumulative count 1999480)
+99.983% <= 1.503 milliseconds (cumulative count 1999656)
+99.989% <= 1.607 milliseconds (cumulative count 1999790)
+99.993% <= 1.703 milliseconds (cumulative count 1999859)
+99.995% <= 1.807 milliseconds (cumulative count 1999900)
+99.996% <= 1.903 milliseconds (cumulative count 1999925)
+99.997% <= 2.007 milliseconds (cumulative count 1999937)
+99.997% <= 2.103 milliseconds (cumulative count 1999938)
+99.997% <= 3.103 milliseconds (cumulative count 1999946)
+99.998% <= 4.103 milliseconds (cumulative count 1999963)
+99.999% <= 5.103 milliseconds (cumulative count 1999984)
+100.000% <= 6.103 milliseconds (cumulative count 2000000)
+
+Summary:
+  throughput summary: 234990.02 requests per second
+  latency summary (msec):
+          avg       min       p50       p95       p99       max
+        0.175     0.024     0.159     0.359     0.511     5.791
+
+# server: lcache-server listening on 127.0.0.1:16500 (threads=2, shards=64, capacity=32MiB, policy=lru)
+# server: hits=1397806 misses=602194 sets=2000000 evictions=242172 collisions=0 too_large=0

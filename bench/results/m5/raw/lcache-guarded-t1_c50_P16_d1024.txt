@@ -1,0 +1,666 @@
+# config: lcache-guarded-t1 clients=50 pipeline=16 datasize=1024
+ 
+                                                             
+                                                                      
+                                                                     
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+                                                                      
+====== SET ======
+  2000000 requests completed in 111.64 seconds
+  50 parallel clients
+  1024 bytes payload
+  keep alive: 1
+  host configuration "save": 
+  host configuration "appendonly": no
+  multi-thread: yes
+  threads: 4
+
+Latency by percentile distribution:
+0.000% <= 0.239 milliseconds (cumulative count 16)
+50.000% <= 42.527 milliseconds (cumulative count 1004336)
+75.000% <= 46.271 milliseconds (cumulative count 1500128)
+87.500% <= 51.071 milliseconds (cumulative count 1751072)
+93.750% <= 56.159 milliseconds (cumulative count 1875360)
+96.875% <= 60.767 milliseconds (cumulative count 1937712)
+98.438% <= 65.087 milliseconds (cumulative count 1968816)
+99.219% <= 69.119 milliseconds (cumulative count 1984432)
+99.609% <= 76.479 milliseconds (cumulative count 1992192)
+99.805% <= 83.071 milliseconds (cumulative count 1996096)
+99.902% <= 582.143 milliseconds (cumulative count 1998352)
+99.951% <= 755.199 milliseconds (cumulative count 1999088)
+99.976% <= 849.407 milliseconds (cumulative count 1999936)
+99.997% <= 849.919 milliseconds (cumulative count 2000000)
+100.000% <= 849.919 milliseconds (cumulative count 2000000)
+
+Cumulative distribution of latencies:
+0.000% <= 0.103 milliseconds (cumulative count 0)
+0.001% <= 0.303 milliseconds (cumulative count 16)
+0.002% <= 0.407 milliseconds (cumulative count 32)
+0.014% <= 0.503 milliseconds (cumulative count 288)
+0.022% <= 0.607 milliseconds (cumulative count 448)
+0.038% <= 0.703 milliseconds (cumulative count 752)
+0.052% <= 0.807 milliseconds (cumulative count 1040)
+0.061% <= 0.903 milliseconds (cumulative count 1216)
+0.071% <= 1.007 milliseconds (cumulative count 1424)
+0.080% <= 1.103 milliseconds (cumulative count 1600)
+0.097% <= 1.207 milliseconds (cumulative count 1936)
+0.110% <= 1.303 milliseconds (cumulative count 2208)
+0.122% <= 1.407 milliseconds (cumulative count 2448)
+0.133% <= 1.503 milliseconds (cumulative count 2656)
+0.140% <= 1.607 milliseconds (cumulative count 2800)
+0.150% <= 1.703 milliseconds (cumulative count 3008)
+0.164% <= 1.807 milliseconds (cumulative count 3280)
+0.215% <= 1.903 milliseconds (cumulative count 4304)
+0.303% <= 2.007 milliseconds (cumulative count 6064)
+0.418% <= 2.103 milliseconds (cumulative count 8368)
+1.236% <= 3.103 milliseconds (cumulative count 24720)
+1.446% <= 4.103 milliseconds (cumulative count 28912)
+1.530% <= 5.103 milliseconds (cumulative count 30608)
+1.553% <= 6.103 milliseconds (cumulative count 31056)
+1.568% <= 7.103 milliseconds (cumulative count 31360)
+1.576% <= 8.103 milliseconds (cumulative count 31520)
+1.586% <= 9.103 milliseconds (cumulative count 31728)
+1.590% <= 10.103 milliseconds (cumulative count 31792)
+1.594% <= 11.103 milliseconds (cumulative count 31872)
+1.599% <= 12.103 milliseconds (cumulative count 31984)
+1.603% <= 13.103 milliseconds (cumulative count 32064)
+1.607% <= 14.103 milliseconds (cumulative count 32144)
+1.612% <= 15.103 milliseconds (cumulative count 32240)
+1.616% <= 16.103 milliseconds (cumulative count 32320)
+1.625% <= 17.103 milliseconds (cumulative count 32496)
+1.638% <= 18.111 milliseconds (cumulative count 32752)
+1.649% <= 19.103 milliseconds (cumulative count 32976)
+1.653% <= 20.111 milliseconds (cumulative count 33056)
+1.654% <= 21.103 milliseconds (cumulative count 33088)
+1.658% <= 22.111 milliseconds (cumulative count 33152)
+1.660% <= 23.103 milliseconds (cumulative count 33200)
+1.662% <= 24.111 milliseconds (cumulative count 33232)
+1.666% <= 25.103 milliseconds (cumulative count 33328)
+1.668% <= 26.111 milliseconds (cumulative count 33360)
+1.670% <= 27.103 milliseconds (cumulative count 33408)
+1.674% <= 28.111 milliseconds (cumulative count 33488)
+1.682% <= 29.103 milliseconds (cumulative count 33648)
+1.690% <= 30.111 milliseconds (cumulative count 33808)
+1.698% <= 31.103 milliseconds (cumulative count 33952)
+1.712% <= 32.111 milliseconds (cumulative count 34240)
+1.730% <= 33.119 milliseconds (cumulative count 34608)
+1.774% <= 34.111 milliseconds (cumulative count 35472)
+1.931% <= 35.103 milliseconds (cumulative count 38624)
+2.714% <= 36.127 milliseconds (cumulative count 54288)
+4.440% <= 37.119 milliseconds (cumulative count 88800)
+7.900% <= 38.111 milliseconds (cumulative count 158000)
+13.645% <= 39.103 milliseconds (cumulative count 272896)
+21.748% <= 40.127 milliseconds (cumulative count 434960)
+32.442% <= 41.119 milliseconds (cumulative count 648832)
+45.192% <= 42.111 milliseconds (cumulative count 903840)
+56.061% <= 43.103 milliseconds (cumulative count 1121216)
+64.426% <= 44.127 milliseconds (cumulative count 1288512)
+70.195% <= 45.119 milliseconds (cumulative count 1403904)
+74.427% <= 46.111 milliseconds (cumulative count 1488544)
+77.814% <= 47.103 milliseconds (cumulative count 1556272)
+81.066% <= 48.127 milliseconds (cumulative count 1621312)
+83.598% <= 49.119 milliseconds (cumulative count 1671968)
+85.874% <= 50.111 milliseconds (cumulative count 1717472)
+87.605% <= 51.103 milliseconds (cumulative count 1752096)
+89.221% <= 52.127 milliseconds (cumulative count 1784416)
+90.524% <= 53.119 milliseconds (cumulative count 1810480)
+91.808% <= 54.111 milliseconds (cumulative count 1836160)
+92.746% <= 55.103 milliseconds (cumulative count 1854912)
+93.734% <= 56.127 milliseconds (cumulative count 1874688)
+94.618% <= 57.119 milliseconds (cumulative count 1892368)
+95.374% <= 58.111 milliseconds (cumulative count 1907488)
+96.049% <= 59.103 milliseconds (cumulative count 1920976)
+96.631% <= 60.127 milliseconds (cumulative count 1932624)
+97.057% <= 61.119 milliseconds (cumulative count 1941136)
+97.514% <= 62.111 milliseconds (cumulative count 1950288)
+97.858% <= 63.103 milliseconds (cumulative count 1957152)
+98.182% <= 64.127 milliseconds (cumulative count 1963648)
+98.448% <= 65.119 milliseconds (cumulative count 1968960)
+98.676% <= 66.111 milliseconds (cumulative count 1973520)
+98.924% <= 67.135 milliseconds (cumulative count 1978480)
+99.086% <= 68.159 milliseconds (cumulative count 1981712)
+99.222% <= 69.119 milliseconds (cumulative count 1984432)
+99.294% <= 70.143 milliseconds (cumulative count 1985888)
+99.367% <= 71.103 milliseconds (cumulative count 1987344)
+99.442% <= 72.127 milliseconds (cumulative count 1988848)
+99.494% <= 73.151 milliseconds (cumulative count 1989872)
+99.533% <= 74.111 milliseconds (cumulative count 1990656)
+99.570% <= 75.135 milliseconds (cumulative count 1991392)
+99.601% <= 76.159 milliseconds (cumulative count 1992016)
+99.634% <= 77.119 milliseconds (cumulative count 1992672)
+99.672% <= 78.143 milliseconds (cumulative count 1993440)
+99.717% <= 79.103 milliseconds (cumulative count 1994336)
+99.752% <= 80.127 milliseconds (cumulative count 1995040)
+99.771% <= 81.151 milliseconds (cumulative count 1995424)
+99.787% <= 82.111 milliseconds (cumulative count 1995744)
+99.805% <= 83.135 milliseconds (cumulative count 1996096)
+99.822% <= 84.159 milliseconds (cumulative count 1996448)
+99.839% <= 85.119 milliseconds (cumulative count 1996784)
+99.854% <= 86.143 milliseconds (cumulative count 1997072)
+99.857% <= 87.103 milliseconds (cumulative count 1997136)
+99.859% <= 88.127 milliseconds (cumulative count 1997184)
+99.863% <= 89.151 milliseconds (cumulative count 1997264)
+99.866% <= 90.111 milliseconds (cumulative count 1997328)
+99.869% <= 91.135 milliseconds (cumulative count 1997376)
+99.873% <= 92.159 milliseconds (cumulative count 1997456)
+99.874% <= 93.119 milliseconds (cumulative count 1997472)
+99.874% <= 94.143 milliseconds (cumulative count 1997488)
+99.877% <= 95.103 milliseconds (cumulative count 1997536)
+99.881% <= 96.127 milliseconds (cumulative count 1997616)
+99.918% <= 582.143 milliseconds (cumulative count 1998352)
+99.920% <= 583.167 milliseconds (cumulative count 1998400)
+99.954% <= 755.199 milliseconds (cumulative count 1999088)
+99.960% <= 756.223 milliseconds (cumulative count 1999200)
+99.997% <= 849.407 milliseconds (cumulative count 1999936)
+100.000% <= 850.431 milliseconds (cumulative count 2000000)
+
+Summary:
+  throughput summary: 17914.08 requests per second
+  latency summary (msec):
+          avg       min       p50       p95       p99       max
+       44.553     0.232    42.527    57.663    67.583   849.919
+ 
+                                                           
+                                                                        
+                                                                        
+                                                                        
+                                                                        
+                                                                        
+                                                                        
+====== GET ======
+  2000000 requests completed in 1.75 seconds
+  50 parallel clients
+  1024 bytes payload
+  keep alive: 1
+  host configuration "save": 
+  host configuration "appendonly": no
+  multi-thread: yes
+  threads: 4
+
+Latency by percentile distribution:
+0.000% <= 0.143 milliseconds (cumulative count 48)
+50.000% <= 0.591 milliseconds (cumulative count 1035552)
+75.000% <= 0.655 milliseconds (cumulative count 1553536)
+87.500% <= 0.695 milliseconds (cumulative count 1761248)
+93.750% <= 0.735 milliseconds (cumulative count 1879792)
+96.875% <= 0.783 milliseconds (cumulative count 1941984)
+98.438% <= 0.831 milliseconds (cumulative count 1969440)
+99.219% <= 0.895 milliseconds (cumulative count 1985568)
+99.609% <= 0.983 milliseconds (cumulative count 1992336)
+99.805% <= 1.159 milliseconds (cumulative count 1996096)
+99.902% <= 1.295 milliseconds (cumulative count 1998128)
+99.951% <= 1.535 milliseconds (cumulative count 1999072)
+99.976% <= 2.471 milliseconds (cumulative count 1999520)
+99.988% <= 3.591 milliseconds (cumulative count 1999760)
+99.994% <= 5.687 milliseconds (cumulative count 1999936)
+99.997% <= 6.143 milliseconds (cumulative count 1999984)
+99.999% <= 6.151 milliseconds (cumulative count 2000000)
+100.000% <= 6.151 milliseconds (cumulative count 2000000)
+
+Cumulative distribution of latencies:
+0.000% <= 0.103 milliseconds (cumulative count 0)
+0.038% <= 0.207 milliseconds (cumulative count 752)
+0.350% <= 0.303 milliseconds (cumulative count 6992)
+0.882% <= 0.407 milliseconds (cumulative count 17632)
+7.253% <= 0.503 milliseconds (cumulative count 145056)
+59.354% <= 0.607 milliseconds (cumulative count 1187072)
+89.694% <= 0.703 milliseconds (cumulative count 1793872)
+97.896% <= 0.807 milliseconds (cumulative count 1957920)
+99.320% <= 0.903 milliseconds (cumulative count 1986400)
+99.656% <= 1.007 milliseconds (cumulative count 1993120)
+99.741% <= 1.103 milliseconds (cumulative count 1994816)
+99.842% <= 1.207 milliseconds (cumulative count 1996848)
+99.919% <= 1.303 milliseconds (cumulative count 1998384)
+99.945% <= 1.407 milliseconds (cumulative count 1998896)
+99.949% <= 1.503 milliseconds (cumulative count 1998976)
+99.958% <= 1.607 milliseconds (cumulative count 1999168)
+99.959% <= 1.703 milliseconds (cumulative count 1999184)
+99.960% <= 1.903 milliseconds (cumulative count 1999200)
+99.962% <= 2.007 milliseconds (cumulative count 1999232)
+99.965% <= 2.103 milliseconds (cumulative count 1999296)
+99.984% <= 3.103 milliseconds (cumulative count 1999680)
+99.990% <= 4.103 milliseconds (cumulative count 1999808)
+99.997% <= 6.103 milliseconds (cumulative count 1999936)
+100.000% <= 7.103 milliseconds (cumulative count 2000000)
+
+Summary:
+  throughput summary: 1141552.50 requests per second
+  latency summary (msec):
+          avg       min       p50       p95       p99       max
+        0.602     0.136     0.591     0.751     0.871     6.151
+
+# server: lcache-server listening on 127.0.0.1:16500 (threads=1, shards=64, capacity=32MiB, policy=guarded)
+# server: hits=64591 misses=1935409 sets=2000000 evictions=1904092 collisions=0 too_large=0
+# server: guard: learned_evictions=1904092 fallback_evictions=0 hit_rate_trips=0 latency_trips=0 budget_breaches=0 retries=0 shards_in_learned_mode=64/64
