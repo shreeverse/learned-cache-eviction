@@ -1,4 +1,214 @@
+/* Colour tokens: components use these roles, never raw hex, so dark mode swaps them in one
+   place. */
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #898781;
+  --grid: #e1e0d9;
+  --axis: #c3c2b7;
+  --border: rgba(11, 11, 11, 0.1);
+  --accent: #2a78d6;
+  --accent-text: #ffffff;
+  --critical: #d03b3b;
+  --critical-wash: rgba(208, 59, 59, 0.08);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --text-primary: #f0efec;
+    --text-secondary: #c3c2b7;
+    --text-muted: #898781;
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --border: rgba(255, 255, 255, 0.1);
+    --accent: #3987e5;
+    --accent-text: #0b0b0b;
+    --critical-wash: rgba(208, 59, 59, 0.16);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
 body {
   margin: 0;
-  font-family: system-ui, sans-serif;
+  background: var(--page);
+  color: var(--text-primary);
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.app {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+h2 {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.subtitle,
+.hint,
+.status {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.hint {
+  font-size: 12px;
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+/* Control panel: one row of field groups above everything they scope; wraps on narrow screens. */
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 200px;
+  flex: 1 1 200px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.field > label,
+.field > legend {
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 0;
+}
+
+.field.run {
+  flex: 0 0 auto;
+  min-width: 160px;
+  align-self: flex-end;
+}
+
+select,
+input[type='number'] {
+  font: inherit;
+  color: inherit;
+  background: var(--page);
+  border: 1px solid var(--axis);
+  border-radius: 6px;
+  padding: 6px 8px;
+  max-width: 100%;
+}
+
+input[type='range'] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.check:has(input:disabled) {
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.check input {
+  accent-color: var(--accent);
+}
+
+.tag {
+  font-size: 11px;
+  color: var(--text-secondary);
+  border: 1px solid var(--axis);
+  border-radius: 4px;
+  padding: 0 4px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.chip {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  border: 1px solid var(--axis);
+  border-radius: 999px;
+  padding: 1px 8px;
+  color: var(--text-secondary);
+}
+
+button {
+  font: inherit;
+  font-weight: 600;
+  color: var(--accent-text);
+  background: var(--accent);
+  border: 0;
+  border-radius: 6px;
+  padding: 8px 16px;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.error {
+  border: 1px solid var(--critical);
+  background: var(--critical-wash);
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+
+.error strong,
+.error span {
+  color: var(--critical);
+}
+
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transition: opacity 150ms;
+}
+
+/* The previous result while a new run is in progress. */
+.results.stale {
+  opacity: 0.45;
+  pointer-events: none;
 }
