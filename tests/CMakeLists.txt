@@ -70,7 +70,9 @@ endif()
 add_executable(server_test
   server/resp_test.cpp
   server/store_test.cpp
-  server/commands_test.cpp)
+  server/commands_test.cpp
+  server/stress_test.cpp)
+target_compile_definitions(server_test PRIVATE LC_MODELS_DIR="${PROJECT_SOURCE_DIR}/models")
 target_link_libraries(server_test PRIVATE lc_server GTest::gtest_main lc_warnings)
 gtest_discover_tests(server_test)
 
