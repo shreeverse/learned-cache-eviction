@@ -43,3 +43,12 @@ export function runSimulation(body) {
     body: JSON.stringify(body),
   })
 }
+
+// body: {trace, policies, slots, start, length}. Every step of a short window, for animation.
+export function visualizeWindow(body) {
+  return request('/api/visualize-window', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+}

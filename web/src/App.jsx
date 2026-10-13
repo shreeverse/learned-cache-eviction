@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { fetchPolicies, fetchTraces, runSimulation } from './api.js'
 import { useChartTheme } from './colors.js'
 import ControlPanel from './components/ControlPanel.jsx'
+import EvictionVisualizer from './components/EvictionVisualizer.jsx'
 import HitRateChart from './components/HitRateChart.jsx'
 import ResultsTable from './components/ResultsTable.jsx'
 import SeriesChart from './components/SeriesChart.jsx'
@@ -12,7 +13,10 @@ import { formatBytes, formatCount } from './format.js'
 export default function App() {
   const [traces, setTraces] = useState([])
   const [policies, setPolicies] = useState([])
+  const [loaded, setLoaded] = useState(false)
   const [loadError, setLoadError] = useState(null)
+  const [tab, setTab] = useState('rates')
+  const theme = useChartTheme()
   const [result, setResult] = useState(null)
   const [running, setRunning] = useState(false)
   const [runError, setRunError] = useState(null)
@@ -28,6 +32,7 @@ export default function App() {
         if (ignore) return
         setTraces(traceList)
         setPolicies(policyList)
+        setLoaded(true)
       })
       .catch((error) => {
         if (!ignore) setLoadError(error.message)
@@ -61,20 +66,60 @@ export default function App() {
       </header>
 
       {loadError && <ErrorBanner message={loadError} />}
-
-      <ControlPanel traces={traces} policies={policies} running={running} onRun={handleRun} />
-
-      {runError && <ErrorBanner message={runError} />}
-      {running && (
-        <p className="status" role="status">
-          Running simulation…
-        </p>
+      {loaded && traces.length === 0 && (
+        <ErrorBanner
+          message={
+            'No traces found in data/. Download them with tools/fetch_traces.sh ' +
+            '(see the README), then reload.'
+          }
+        />
       )}
 
-      {result && <ResultsView result={result} policies={policies} running={running} />}
+      <div className="tabs" role="tablist" aria-label="Views">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            id={`tab-${t.id}`}
+            aria-selected={tab === t.id}
+            aria-controls={`panel-${t.id}`}
+            className={tab === t.id ? 'tab selected' : 'tab'}
+            onClick={() => setTab(t.id)}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Both panels stay mounted and the inactive one is only hidden, so switching tabs keeps
+          each one's state (the last results, the loaded window). Rendering only the active
+          one would unmount the other and throw its state away. */}
+      <div role="tabpanel" id="panel-rates" aria-labelledby="tab-rates" hidden={tab !== 'rates'}>
+        <div className="stack">
+          <ControlPanel traces={traces} policies={policies} running={running} onRun={handleRun} />
+          {runError && <ErrorBanner message={runError} />}
+          {running && (
+            <p className="status" role="status">
+              Running simulation…
+            </p>
+          )}
+          {result && (
+            <ResultsView result={result} policies={policies} running={running} theme={theme} />
+          )}
+        </div>
+      </div>
+      <div role="tabpanel" id="panel-window" aria-labelledby="tab-window" hidden={tab !== 'window'}>
+        <EvictionVisualizer traces={traces} policies={policies} theme={theme} />
+      </div>
     </div>
   )
 }
+
+const TABS = [
+  { id: 'rates', label: 'Hit rates' },
+  { id: 'window', label: 'Eviction window' },
+]
 
 const METRICS = [
   { id: 'hit_rate', label: 'Hit rate' },
@@ -82,8 +127,7 @@ const METRICS = [
 ]
 
 // The charts and table for one simulation result, with the view controls that scope them.
-function ResultsView({ result, policies, running }) {
-  const theme = useChartTheme()
+function ResultsView({ result, policies, running, theme }) {
   const [metric, setMetric] = useState('hit_rate')
   const [seriesSize, setSeriesSize] = useState(null)
 

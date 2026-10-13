@@ -347,3 +347,220 @@ td.best {
   margin-right: 8px;
   vertical-align: -1px;
 }
+
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--axis);
+}
+
+.tab {
+  color: var(--text-secondary);
+  background: transparent;
+  border-radius: 6px 6px 0 0;
+  border-bottom: 2px solid transparent;
+  padding: 8px 14px;
+  font-weight: 600;
+}
+
+.tab.selected {
+  color: var(--text-primary);
+  border-bottom-color: var(--accent);
+}
+
+.stack,
+.visualizer {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+button.ghost {
+  color: var(--text-primary);
+  background: transparent;
+  border: 1px solid var(--axis);
+  padding: 7px 12px;
+}
+
+/* Eviction window */
+:root {
+  --good: #0ca30c;
+  --good-text: #006300;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --good-text: #0ca30c;
+  }
+}
+
+.window {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.window.stale {
+  opacity: 0.45;
+}
+
+.player {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.player-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.player-speed {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+}
+
+.scrubber {
+  flex: 1 1 200px;
+  accent-color: var(--accent);
+}
+
+.player-count {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  min-width: 64px;
+  text-align: right;
+}
+
+.strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.strip-key {
+  min-width: 28px;
+  padding: 2px 4px;
+  text-align: center;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  border: 1px solid var(--grid);
+  border-radius: 4px;
+}
+
+.strip-key.past {
+  color: var(--text-muted);
+}
+
+.strip-key.current {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+  font-weight: 700;
+}
+
+.lane {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--grid);
+}
+
+.lane-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.lane-head .swatch {
+  margin-right: 0;
+}
+
+.lane-hits {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Hit / miss is a status: icon and word, never colour alone. */
+.outcome {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.outcome.hit {
+  color: var(--good-text);
+}
+
+.outcome.miss {
+  color: var(--critical);
+}
+
+.slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.slot {
+  width: 48px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--axis);
+  border-radius: 6px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.slot:has(.slot-key) {
+  border-style: solid;
+  background: var(--page);
+}
+
+.slot.accessed {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.slot-key {
+  animation: slot-in 300ms ease-out;
+}
+
+@keyframes slot-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slot-key {
+    animation: none;
+  }
+}
+
+.evicted {
+  font-size: 12px;
+  color: var(--text-secondary);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: baseline;
+}
+
+.evicted-key {
+  color: var(--text-muted);
+}
