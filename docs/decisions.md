@@ -334,3 +334,49 @@ Full design: `docs/m5-design.md`.
   pipelining, but unbounded memory unless a second limit is added).
 - **Tool compatibility:** `COMMAND` → empty array; `CONFIG GET save|appendonly` → `""` / `"no"`,
   which is what `redis-benchmark` reads at startup.
+
+## D23. Capacity split evenly across shards (M5)
+
+- **Each of the S shards gets capacity / S bytes** and evicts on its own, with its own policy
+  instance. A key's hash spreads keys evenly, so each shard sees a statistically similar
+  sub-stream. **Rejected:** one global byte budget (a shared atomic counter, plus an eviction
+  that must pick a shard to evict from: either a global policy, which brings back a global lock,
+  or a heuristic such as "evict in the fullest shard", which is not the policy being measured).
+- **Consequence, measured (docs/m5-results.md, section 3):** an object larger than one shard
+  can never be stored (`too_large`): at 1 MiB and S = 64, 4,203 SETs were refused, which acts as
+  a size-based admission filter (object hit rate up, byte hit rate down). At 16 MiB, sharding
+  cost LRU 0.04 pp and guarded 0.2–0.5 pp. **Rule:** size the cache so one shard can hold the
+  largest objects that matter. Routing large objects separately is deferred.
+
+## D24. Checking the server against the simulator: same requests, the server's key ids (M5)
+
+- `lcache-replay` replays a trace over RESP as a cache-aside client (GET; on a miss, SET with a
+  value of size − key length, so the server charges exactly the simulator's size). `--mode
+  simulate` runs `sim::Cache` on the same requests **with each object id replaced by the
+  server's hash of its key**. With S = 1 the two agree hit for hit for LRU, W-TinyLFU and
+  guarded (docs/m5-results.md, section 2).
+- **Rejected:** comparing with cachesim on the trace's own ids. Only LRU matches that way,
+  because W-TinyLFU's sketch hashes key values: relabeling the same 2M requests 12 ways moves
+  W-TinyLFU's hit rate by up to 10 pp at 16 MiB (section 4).
+- **W-TinyLFU is left unchanged** pending review of that sensitivity: it is a core policy, and the
+  M2–M4 W-TinyLFU baselines carry that much uncertainty at some sizes until it is explained.
+
+## D25. Benchmark method for the server (M5)
+
+- **Client:** `redis-benchmark` 7.2.14 built from a SHA-256-pinned source tarball (the Ubuntu
+  6.0.16 client reports latency only in whole-millisecond buckets; 7.x reports p50/p99/p99.9).
+  **Baseline server:** the distro's `redis-server` 6.0.16, `maxmemory` + `allkeys-lru`, no
+  persistence. Both servers get 32 MiB, below the working set, so eviction runs throughout.
+- **Isolation:** a fresh server for every configuration; `taskset`: server on CPUs 0–7, client
+  on 8–15. One run per configuration (no variance estimate yet).
+- **Reported:** ops/s and p50/p99/p99.9 per request. Hit rates from `redis-benchmark` are
+  not a policy comparison (uniform random keys), and Redis's are lower because its `maxmemory`
+  includes per-key overhead.
+- **Known limit, found in the data:** `redis-benchmark` notices that a run is done on a 250 ms
+  tick, so with 2M requests any rate above ~400k ops/s is a lower bound that can be up to 33%
+  low. **Fix for the next run:** scale `-n` so that every run lasts ≥ 10 s. Until then the
+  pipelined comparisons are given as tick bins, not ratios.
+- **Not changed:** the guard's default time budget stays off in `lcache-server`. At 10 and
+  25 µs every shard tripped on its first learned eviction (the server measured about 70 µs per
+  learned eviction with 64 candidates), so the right budget or candidate count is chosen after
+  profiling (docs/m5-results.md, section 6).
