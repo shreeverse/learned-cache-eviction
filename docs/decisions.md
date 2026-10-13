@@ -315,6 +315,9 @@ Full design: `docs/m5-design.md`.
   `FeatureTracker` history (D17, D20). On a collision within a shard the newer string replaces
   the older entry (legal for a cache); GET compares full strings. **Rejected:** per-shard counter
   ids (collision-free, but re-inserted keys lose their history).
+  *Implementation:* one `unordered_map<Key, Entry{key, value}>` per shard instead of the two maps
+  in the design: at most one key per id, so the id alone finds a victim's entry and GET compares
+  `Entry::key`. The hash is FNV-1a plus the splitmix64 finalizer; the shard is its top bits.
 - **Cache-aside semantics:** GET misses don't insert; SET inserts, then evicts until within the
   shard's capacity (D2). Policy virtual time (D11) thus counts hits and SETs only, a train/serve
   shift that the trace-replay check measures.

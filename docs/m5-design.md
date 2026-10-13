@@ -55,8 +55,8 @@ thread may lock any shard.**
 ## 3. Keys: string → policy `Key`
 
 - **Policy `Key` = 64-bit hash of the key bytes.** The shard stores
-  `unordered_map<std::string, Entry{Key id, std::string value}>` and an `id → entry` index to map
-  a victim id back to its entry.
+  `unordered_map<Key, Entry{std::string key, std::string value}>`: at most one key per id, so a
+  victim id finds its entry directly and GET compares the full key.
 - **Why a hash, not a per-shard counter:** `FeatureTracker` keeps history for recently evicted keys
   (D17, D20). A key evicted and SET again must get the same id, or the learned policy loses
   exactly the history it was trained on.

@@ -68,6 +68,7 @@ if(LC_WITH_LIGHTGBM)
 endif()
 
 add_executable(server_test
-  server/resp_test.cpp)
+  server/resp_test.cpp
+  server/store_test.cpp)
 target_link_libraries(server_test PRIVATE lc_server GTest::gtest_main lc_warnings)
 gtest_discover_tests(server_test)
