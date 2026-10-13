@@ -325,3 +325,12 @@ Full design: `docs/m5-design.md`.
   Boost dependency.
 - **RESP parser has no Asio dependency** (incremental, zero-copy `string_view` arguments), so it is
   unit-tested in isolation, including every split point of every input.
+- **Connection loop:** strictly read → run every complete command → one `async_write` → repeat,
+  so one async op is outstanding and a client that stops reading stops being read. A batch
+  stops once 1 MiB of replies is pending (pipelined GETs of big values can't grow the buffer
+  without bound) and resumes after the write. Each connection is started on its own
+  `io_context` (posted from the accept handler), so only that thread ever touches it.
+  **Rejected:** a write queue that keeps reading while writing (more throughput under deep
+  pipelining, but unbounded memory unless a second limit is added).
+- **Tool compatibility:** `COMMAND` → empty array; `CONFIG GET save|appendonly` → `""` / `"no"`,
+  which is what `redis-benchmark` reads at startup.

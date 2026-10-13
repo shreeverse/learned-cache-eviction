@@ -69,6 +69,12 @@ endif()
 
 add_executable(server_test
   server/resp_test.cpp
-  server/store_test.cpp)
+  server/store_test.cpp
+  server/commands_test.cpp)
 target_link_libraries(server_test PRIVATE lc_server GTest::gtest_main lc_warnings)
 gtest_discover_tests(server_test)
+
+add_executable(server_net_test
+  server/network_test.cpp)
+target_link_libraries(server_net_test PRIVATE lc_server_net GTest::gtest_main lc_warnings)
+gtest_discover_tests(server_net_test)
