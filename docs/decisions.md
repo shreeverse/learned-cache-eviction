@@ -399,3 +399,28 @@ Full design: `docs/m6-design.md`.
   concurrency is capped. **Rejected for now:** a job queue with polling.
 - **Traces are named, never pathed:** the client sends a name that must appear in the server's
   listing of `--data-dir`.
+
+## D27. Eviction window: object slots, a recording wrapper, stable slots (M6)
+
+Full design: `docs/m6-part2-design.md`.
+
+- **Capacity in objects (`ignore_size`), 2–16 slots, 10–100 requests.** A slot is one box on
+  screen. Measured on 100 requests with 8 slots: LRU 11 hits vs Belady 21 (Twitter), 23 vs 35
+  (cloudPhysicsIO), so a window shows real differences. **Rejected:** byte capacity (thousands
+  of objects at any real size). Cost: policies see size 1, which the learned model never saw.
+- **`RecordingPolicy` wraps the real policy** and records inserts and victims, so `sim::Cache`
+  and the policies are untouched. **Rejected:** returning victims from `Cache::access`.
+- **Stable slots, computed on the server:** a victim frees its slot, a newcomer takes the lowest
+  free one, so boxes that did not change do not move. Server-side, so it is unit-tested and the
+  UI only draws snapshots (≤ 100 × 16 × 4 entries).
+
+## D28. Containers: two services behind one origin, traces mounted (M6)
+
+- **`api` (C++ binary on Ubuntu 22.04) and `web` (static files on nginx), nginx forwarding
+  `/api/`**, so the browser sees one origin, as with the Vite proxy in development. **Rejected:**
+  `lcache-api` serving the static files (one container, but it mixes the dashboard's build into
+  the C++ image).
+- **Traces are mounted read-only from `./data`,** never baked into an image (the Twitter prefix is
+  240 MB and the repo keeps traces out of git).
+- **LightGBM off in the image:** the learned policy uses the compiled evaluator (D19).
+- **Ports bound to 127.0.0.1** (3000 dashboard, 8000 API): nothing is exposed on the network.
