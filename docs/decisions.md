@@ -424,3 +424,32 @@ Full design: `docs/m6-part2-design.md`.
   240 MB and the repo keeps traces out of git).
 - **LightGBM off in the image:** the learned policy uses the compiled evaluator (D19).
 - **Ports bound to 127.0.0.1** (3000 dashboard, 8000 API): nothing is exposed on the network.
+
+## D29. CI: one script for local runs and GitHub Actions, the development toolchain pinned (M7)
+
+- **Every CI job runs a step of `tools/ci.sh`** (`cpp <preset>`, `web`, `docker`; `all` runs
+  them in order), so `tools/ci.sh all` checks locally exactly what CI checks. **Rejected:** the
+  steps written out in the workflow YAML, where they drift from what anyone runs locally.
+- **C++ jobs: release, asan (ASan + UBSan) and tsan presets, warnings as errors.**
+  `LC_WARNINGS_AS_ERRORS` is on only in CI, so a new compiler's new warning doesn't block local
+  work but can't be merged. Each preset builds into `build/ci-<preset>`, so a local run leaves
+  `build/<preset>` alone.
+- **The C++ jobs run in `ubuntu:jammy`, the same pinned image as `api/Dockerfile`**: GCC 11.4 and
+  CMake 3.22.1, the toolchain every result was measured with. **Rejected:** the runner's own
+  compiler (a different GCC, whose warnings and sanitizer runtime we never ran locally).
+  Cost: `apt-get install` on every run (no cache).
+- **TSan tests run under `setarch -R`, as locally (D5).** In a container that needs
+  `--security-opt seccomp=unconfined`: Docker's default seccomp profile blocks the
+  `personality()` call that turns ASLR off.
+- **Only the 2.7 MB cloudPhysicsIO trace is fetched** (`tools/fetch_traces.sh --small`): it is
+  what the libCacheSim golden test needs. That test would skip without it, so `ci.sh cpp` fails
+  instead of passing with a skipped test. The 784 MB Twitter download stays out of CI; no test
+  needs it (tests that load a model use the committed `models/`).
+- **Dashboard job: `npm ci`, `oxlint --deny-warnings`, `vite build`,** on the Node version of
+  `web/Dockerfile`.
+- **Docker job: `docker compose up --wait`, then requests through nginx on :3000** (health,
+  trace list, one LRU simulation checked against cloudPhysicsIO's 113,872 requests, the
+  dashboard page), so the documented `docker compose up` path is tested end to end.
+- **Not in CI:** benchmarks (shared runners are noisy and not the machine the reported numbers
+  come from; every number in the docs comes from a documented local run), model training
+  (Python, needs the Twitter trace), and clang-format / clang-tidy (run locally).

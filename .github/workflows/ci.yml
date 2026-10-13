@@ -1,0 +1,63 @@
+# Every job runs a step of tools/ci.sh, so a local run checks exactly what CI checks (decisions D29).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# A newer push to the same branch or PR cancels the run it replaces.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cpp:
+    name: C++ (${{ matrix.preset }})
+    runs-on: ubuntu-24.04
+    # The same pinned image as api/Dockerfile: GCC 11.4 and CMake 3.22.1, as in local development,
+    # whatever the runner image ships.
+    container:
+      image: ubuntu:jammy-20260901.2
+      # setarch -R (TSan, decisions D5) calls personality(), which Docker's default seccomp
+      # profile blocks.
+      options: --security-opt seccomp=unconfined
+    strategy:
+      fail-fast: false
+      matrix:
+        preset: [release, asan, tsan]
+    env:
+      DEBIAN_FRONTEND: noninteractive
+    steps:
+      - name: Install the toolchain
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends cmake ninja-build g++ git curl ca-certificates
+      - uses: actions/checkout@v5
+      - name: Fetch the golden-test trace
+        run: tools/fetch_traces.sh --small
+      - run: tools/ci.sh cpp ${{ matrix.preset }}
+
+  web:
+    name: Dashboard (lint, build)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22.23.3
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: tools/ci.sh web
+
+  docker:
+    name: docker compose
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: Fetch the trace the smoke test queries
+        run: tools/fetch_traces.sh --small
+      - run: tools/ci.sh docker
