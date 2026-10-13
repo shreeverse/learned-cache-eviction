@@ -45,3 +45,16 @@ if(LC_BUILD_BENCHMARKS)
   set(BENCHMARK_ENABLE_WERROR OFF CACHE BOOL "" FORCE)
   FetchContent_MakeAvailable(googlebenchmark)
 endif()
+
+# Standalone (non-Boost) Asio for the network server (decisions D22). Header-only and the repo
+# has no CMakeLists.txt, so MakeAvailable just downloads it and we wrap it in a target.
+FetchContent_Declare(asio
+  URL https://github.com/chriskohlhoff/asio/archive/refs/tags/asio-1-30-2.tar.gz
+  URL_HASH SHA256=755bd7f85a4b269c67ae0ea254907c078d408cce8e1a352ad2ed664d233780e8)
+FetchContent_MakeAvailable(asio)
+find_package(Threads REQUIRED)
+add_library(lc_asio INTERFACE)
+# SYSTEM keeps our strict warnings off Asio's headers.
+target_include_directories(lc_asio SYSTEM INTERFACE ${asio_SOURCE_DIR}/asio/include)
+target_compile_definitions(lc_asio INTERFACE ASIO_STANDALONE ASIO_NO_DEPRECATED)
+target_link_libraries(lc_asio INTERFACE Threads::Threads)
