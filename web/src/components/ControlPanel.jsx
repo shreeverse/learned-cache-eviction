@@ -56,7 +56,7 @@ export default function ControlPanel({ traces, policies, running, onRun }) {
 
   return (
     <form className="panel controls" onSubmit={handleSubmit}>
-      <div className="field">
+      <div className="field wide">
         <label htmlFor="trace">Trace</label>
         <select id="trace" value={traceName} onChange={(e) => setTrace(e.target.value)}>
           {traces.map((t) => (
@@ -72,7 +72,7 @@ export default function ControlPanel({ traces, policies, running, onRun }) {
           type="number"
           min={1}
           max={MAX_REQUESTS}
-          step={100_000}
+          step={1} // the browser only accepts min + k * step, so a coarser step rejects 1000000
           value={maxRequests}
           onChange={(e) =>
             setMaxRequests(Math.min(MAX_REQUESTS, Math.max(0, Math.floor(Number(e.target.value)))))
