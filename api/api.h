@@ -82,6 +82,7 @@ class Api {
   SimulateRequest parse_simulate(const nlohmann::json& body) const;
 
   bool model_available() const { return model_error_.empty(); }
+  const std::string& model_error() const { return model_error_; }
 
  private:
   PolicyConfig config_for(std::uint64_t capacity_bytes) const;
