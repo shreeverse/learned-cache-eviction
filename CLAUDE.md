@@ -13,7 +13,7 @@ Flagship resume project for SDE roles at big tech. Theme across my three project
 - clang-format and clang-tidy
 - Python only for model training and plotting (pandas, LightGBM, matplotlib)
 - Inference in C++ via LightGBM C API (or ONNX Runtime); no GPU
-- Boost.Asio for the network server (phase 5)
+- Standalone Asio (header-only, no Boost) for the network server (phase 5; decisions D22)
 - Docker for reproducible benchmark runs; GitHub Actions CI
 - Frontend (small, secondary): React with plain JavaScript (Vite, JS template — no TypeScript), a charting library (e.g., Recharts), talking to a small JSON HTTP API over the simulator
 

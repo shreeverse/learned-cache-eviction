@@ -297,3 +297,28 @@ even offline. Not a general fix: the fallback (D21) handles the remaining losses
 - **Open problem:** the learned policy does badly on a W-TinyLFU-shaped cache (never in its
   training data), so retries can be costly (cloudPhysicsIO 256 MiB test: guarded 16.69% vs 29.26%
   learned alone). Candidate fix: training data recorded from W-TinyLFU-shaped caches.
+
+## D22. Server architecture: locked shards, hashed keys, standalone Asio (M5)
+
+Full design: `docs/m5-design.md`.
+
+- **Threads:** N I/O threads, each with its own `asio::io_context`; connections are assigned
+  round-robin and stay on one thread (no strands). **Shards:** S ≫ N (default 64), each an
+  `alignas(64)` struct with a `std::mutex`, one policy instance and its own predictor; any
+  thread may lock any shard. **Rejected:** shared-nothing thread-owned shards (with random keys
+  (N−1)/N of requests would hop threads, plus queues and reply reordering under pipelining);
+  one shared `io_context` (strands, handler migration).
+- **Plain mutex, not `shared_mutex`:** a GET hit calls `on_hit()`, so every op writes policy state.
+  The lock covers only the in-memory op; GET copies the value out under it. **Rejected for
+  v1:** `shared_ptr` values (atomic refcount per hit).
+- **Policy key = 64-bit hash of the key bytes**, so a key evicted and SET again keeps its
+  `FeatureTracker` history (D17, D20). On a collision within a shard the newer string replaces
+  the older entry (legal for a cache); GET compares full strings. **Rejected:** per-shard counter
+  ids (collision-free, but re-inserted keys lose their history).
+- **Cache-aside semantics:** GET misses don't insert; SET inserts, then evicts until within the
+  shard's capacity (D2). Policy virtual time (D11) thus counts hits and SETs only, a train/serve
+  shift that the trace-replay check measures.
+- **Standalone Asio (header-only, FetchContent), not Boost.Asio:** same library and API, without a
+  Boost dependency.
+- **RESP parser has no Asio dependency** (incremental, zero-copy `string_view` arguments), so it is
+  unit-tested in isolation, including every split point of every input.
