@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react'
 import { fetchPolicies, fetchTraces, runSimulation } from './api.js'
+import { useChartTheme } from './colors.js'
 import ControlPanel from './components/ControlPanel.jsx'
-import { formatCount } from './format.js'
+import HitRateChart from './components/HitRateChart.jsx'
+import ResultsTable from './components/ResultsTable.jsx'
+import SeriesChart from './components/SeriesChart.jsx'
+import { formatBytes, formatCount } from './format.js'
 
 // App owns the data shared by several components (the server's lists, the last result, and
 // the loading / error state) and passes it down as props ("lifting state up").
@@ -67,17 +71,102 @@ export default function App() {
         </p>
       )}
 
-      {/* While a new run is in progress the previous result stays, dimmed, so nothing jumps. */}
-      {result && (
-        <section className={running ? 'results stale' : 'results'}>
-          <p className="status">
-            {result.results.length} runs on {result.trace},{' '}
-            {formatCount(result.results[0].requests)} requests each, in{' '}
-            {(result.elapsed_ms / 1000).toFixed(1)} s.
-          </p>
-        </section>
-      )}
+      {result && <ResultsView result={result} policies={policies} running={running} />}
     </div>
+  )
+}
+
+const METRICS = [
+  { id: 'hit_rate', label: 'Hit rate' },
+  { id: 'byte_hit_rate', label: 'Byte hit rate' },
+]
+
+// The charts and table for one simulation result, with the view controls that scope them.
+function ResultsView({ result, policies, running }) {
+  const theme = useChartTheme()
+  const [metric, setMetric] = useState('hit_rate')
+  const [seriesSize, setSeriesSize] = useState(null)
+
+  const labels = Object.fromEntries(policies.map((p) => [p.id, p.label]))
+  const offline = new Set(policies.filter((p) => p.offline).map((p) => p.id))
+  const policyIds = [...new Set(result.results.map((r) => r.policy))]
+  const sizes = [...new Set(result.results.map((r) => r.cache_size))]
+  // The chosen size may not exist in a newer result; then show the smallest.
+  const size = sizes.includes(seriesSize) ? seriesSize : sizes[0]
+  const metricLabel = METRICS.find((m) => m.id === metric).label
+
+  return (
+    // While a new run is in progress this result stays, dimmed, so the layout doesn't jump.
+    <section className={running ? 'results stale' : 'results'}>
+      <p className="status">
+        {result.results.length} runs on <strong>{result.trace}</strong>,{' '}
+        {formatCount(result.results[0].requests)} requests each
+        {result.warmup > 0 && ` after ${formatCount(result.warmup)} warmup requests`}, in{' '}
+        {(result.elapsed_ms / 1000).toFixed(1)} s.
+      </p>
+
+      <div className="view-controls">
+        <div className="segmented" role="radiogroup" aria-label="Metric">
+          {METRICS.map((m) => (
+            <label key={m.id} className={m.id === metric ? 'selected' : undefined}>
+              <input
+                type="radio"
+                name="metric"
+                value={m.id}
+                checked={m.id === metric}
+                onChange={() => setMetric(m.id)}
+              />
+              {m.label}
+            </label>
+          ))}
+        </div>
+        <label>
+          Over-time chart at{' '}
+          <select value={size} onChange={(e) => setSeriesSize(Number(e.target.value))}>
+            {sizes.map((s) => (
+              <option key={s} value={s}>
+                {formatBytes(s)}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <div className="charts">
+        <div className="panel">
+          <h2>{metricLabel} vs cache size</h2>
+          <HitRateChart
+            results={result.results}
+            policyIds={policyIds}
+            labels={labels}
+            metric={metric}
+            theme={theme}
+          />
+        </div>
+        <div className="panel">
+          <h2>
+            {metricLabel} over the trace at {formatBytes(size)}
+          </h2>
+          <p className="hint">
+            Each point is the {metricLabel.toLowerCase()} of{' '}
+            {formatCount(result.series_interval)} consecutive requests.
+          </p>
+          <SeriesChart
+            results={result.results.filter((r) => r.cache_size === size)}
+            interval={result.series_interval}
+            policyIds={policyIds}
+            labels={labels}
+            metric={metric}
+            theme={theme}
+          />
+        </div>
+      </div>
+
+      <div className="panel">
+        <h2>Results</h2>
+        <ResultsTable results={result.results} labels={labels} offline={offline} theme={theme} />
+      </div>
+    </section>
   )
 }
 

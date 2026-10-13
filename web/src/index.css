@@ -216,3 +216,134 @@ button:disabled {
   opacity: 0.45;
   pointer-events: none;
 }
+
+/* Results: view controls in one row above both charts, which they both follow. */
+.view-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  color: var(--text-secondary);
+}
+
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--axis);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.segmented label {
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.segmented label.selected {
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+/* The radio inputs stay in the page for keyboard and screen-reader use, but are not drawn. */
+.segmented input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.segmented label:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr));
+  gap: 16px;
+}
+
+.legend-text {
+  color: var(--text-secondary);
+}
+
+.tooltip {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  font-size: 12px;
+}
+
+.tooltip-title {
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.tooltip-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.tooltip-name {
+  color: var(--text-secondary);
+}
+
+.line-key {
+  display: inline-block;
+  width: 12px;
+  height: 2px;
+  border-radius: 1px;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.table-note {
+  margin-top: 8px;
+}
+
+th,
+td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--grid);
+  white-space: nowrap;
+}
+
+thead th {
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-align: right;
+}
+
+td {
+  text-align: right;
+}
+
+thead th:first-child,
+tbody th {
+  text-align: left;
+  font-weight: 400;
+}
+
+td.best {
+  font-weight: 700;
+}
+
+.swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  margin-right: 8px;
+  vertical-align: -1px;
+}
