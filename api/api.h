@@ -57,6 +57,18 @@ struct Limits {
   static constexpr std::uint32_t kMaxPoints = 1000;
 };
 
+// Limits on one POST /api/visualize-window (decisions D27).
+struct WindowLimits {
+  static constexpr std::size_t kMaxPolicies = 4;
+  static constexpr std::uint64_t kMinSlots = 2;
+  static constexpr std::uint64_t kMaxSlots = 16;
+  static constexpr std::uint64_t kDefaultSlots = 8;
+  static constexpr std::uint64_t kMaxStart = 1'000'000;
+  static constexpr std::uint64_t kMinLength = 10;
+  static constexpr std::uint64_t kMaxLength = 100;
+  static constexpr std::uint64_t kDefaultLength = 60;
+};
+
 // A validated simulate request.
 struct SimulateRequest {
   TraceInfo trace;
@@ -65,6 +77,15 @@ struct SimulateRequest {
   std::uint64_t max_requests = Limits::kDefaultRequests;
   std::uint64_t warmup = 0;
   std::uint32_t series_points = Limits::kDefaultPoints;
+};
+
+// A validated visualize-window request.
+struct WindowRequest {
+  TraceInfo trace;
+  std::vector<std::string> policies;  // ids, in the order given, no duplicates
+  std::uint64_t slots = WindowLimits::kDefaultSlots;
+  std::uint64_t start = 0;  // requests replayed before the window, unrecorded
+  std::uint64_t length = WindowLimits::kDefaultLength;
 };
 
 class Api {
@@ -78,14 +99,23 @@ class Api {
   // POST /api/simulate. Throws ApiError(400) for invalid input. Blocks until every run is done.
   nlohmann::json simulate(const nlohmann::json& body) const;
 
-  // The validation step of simulate(), exposed for tests.
+  // POST /api/visualize-window: every step of a short window at a capacity of `slots` objects
+  // (format in docs/m6-part2-design.md). Throws ApiError(400) for invalid input.
+  nlohmann::json visualize_window(const nlohmann::json& body) const;
+
+  // The validation steps, exposed for tests.
   SimulateRequest parse_simulate(const nlohmann::json& body) const;
+  WindowRequest parse_window(const nlohmann::json& body) const;
 
   bool model_available() const { return model_error_.empty(); }
   const std::string& model_error() const { return model_error_; }
 
  private:
   PolicyConfig config_for(std::uint64_t capacity_bytes) const;
+  // Shared validation: the trace named in body["trace"], and body["policies"].
+  TraceInfo parse_trace(const nlohmann::json& body) const;
+  std::vector<std::string> parse_policies(const nlohmann::json& body,
+                                          std::size_t max_policies) const;
 
   ApiOptions options_;
   PolicyConfig base_config_;  // model settings for learned / guarded

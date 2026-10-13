@@ -6,15 +6,20 @@
 #include <chrono>
 #include <cmath>
 #include <exception>
+#include <functional>
 #include <optional>
 #include <set>
 #include <string_view>
 #include <thread>
+#include <unordered_map>
 #include <utility>
 
+#include "api/visualize.h"
 #include "ml/model_meta.h"
+#include "sim/cache.h"
 #include "sim/simulator.h"
 #include "trace/csv_reader.h"
+#include "trace/next_access.h"
 #include "trace/oracle_general_reader.h"
 #include "trace/reader_factory.h"
 
@@ -121,6 +126,72 @@ json result_json(const std::string& policy, std::uint64_t cache_size, const SimR
            {{"interval", interval}, {"hit_rate", hit_rate}, {"byte_hit_rate", byte_hit_rate}}}};
 }
 
+// Calls fn(0) ... fn(n - 1) on up to `workers` threads. Each index runs exactly once; the first
+// exception thrown (by index) is rethrown after every thread has finished.
+void run_parallel(std::size_t n, unsigned workers, const std::function<void(std::size_t)>& fn) {
+  std::vector<std::exception_ptr> errors(n);
+  std::atomic<std::size_t> next{0};
+  const auto work = [&] {
+    for (std::size_t i = next.fetch_add(1); i < n; i = next.fetch_add(1)) {
+      try {
+        fn(i);
+      } catch (...) {
+        errors[i] = std::current_exception();
+      }
+    }
+  };
+  {
+    const auto count = std::min<std::size_t>(workers, n);
+    std::vector<std::jthread> threads;
+    threads.reserve(count);
+    for (std::size_t w = 0; w < count; ++w) threads.emplace_back(work);
+  }  // jthreads join here
+  for (const auto& e : errors) {
+    if (e) std::rethrow_exception(e);
+  }
+}
+
+// One policy's recorded window (POST /api/visualize-window).
+struct WindowStep {
+  bool hit = false;
+  std::optional<std::size_t> slot;  // where the accessed key is after the step, if cached
+  std::vector<Key> evicted;
+  std::vector<std::optional<Key>> slots;
+};
+struct WindowRun {
+  std::vector<std::optional<Key>> initial;  // slots at the window's start
+  std::vector<WindowStep> steps;
+  std::uint64_t hits = 0;
+};
+
+// Replays trace[0, start + length) at a capacity of `slots` objects, recording the window.
+WindowRun replay_window(std::unique_ptr<EvictionPolicy> policy, const std::vector<Request>& trace,
+                        const WindowRequest& req) {
+  RecordingPolicy rec(std::move(policy));
+  Cache cache(rec, req.slots);
+  SlotMap map(req.slots);
+  WindowRun run;
+  run.steps.reserve(req.length);
+  for (std::uint64_t j = 0; j < req.start + req.length; ++j) {
+    if (j == req.start) run.initial = map.slots();
+    rec.clear();
+    const bool hit = cache.access(trace[j]);
+    map.apply(rec);
+    if (j < req.start) continue;  // warmup: not recorded
+    run.hits += hit ? 1 : 0;
+    run.steps.push_back({hit, map.find(trace[j].key), rec.evicted(), map.slots()});
+  }
+  return run;
+}
+
+// Rejects any field not in `allowed`, so a typo (e.g. "cache_size") is reported, not ignored.
+void check_fields(const json& body, const std::set<std::string>& allowed) {
+  if (!body.is_object()) bad_request("body must be a JSON object");
+  for (const auto& [key, value] : body.items()) {
+    if (!allowed.contains(key)) bad_request("unknown field '" + key + "'");
+  }
+}
+
 double ms_since(std::chrono::steady_clock::time_point start) {
   return std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start)
       .count();
@@ -210,28 +281,22 @@ json Api::policies() const {
   return out;
 }
 
-SimulateRequest Api::parse_simulate(const json& body) const {
-  if (!body.is_object()) bad_request("body must be a JSON object");
-  static const std::set<std::string> kFields{"trace",        "policies", "cache_sizes",
-                                             "max_requests", "warmup",   "series_points"};
-  for (const auto& [key, value] : body.items()) {
-    if (!kFields.contains(key)) bad_request("unknown field '" + key + "'");
-  }
-
-  SimulateRequest req;
-
+TraceInfo Api::parse_trace(const json& body) const {
   // The trace is looked up by name in the server's own listing, so a client-supplied path never
   // reaches the filesystem (decisions D26).
-  const auto trace_it = body.find("trace");
-  if (trace_it == body.end() || !trace_it->is_string()) bad_request("'trace' must be a string");
-  const auto name = trace_it->get<std::string>();
+  const auto it = body.find("trace");
+  if (it == body.end() || !it->is_string()) bad_request("'trace' must be a string");
+  const auto name = it->get<std::string>();
   const auto traces = list_traces(options_.data_dir);
   const auto t = std::find_if(traces.begin(), traces.end(),
                               [&](const TraceInfo& info) { return info.name == name; });
   if (t == traces.end()) bad_request("unknown trace '" + name + "'");
-  req.trace = *t;
+  return *t;
+}
 
-  for (const auto& p : get_array(body, "policies", Limits::kMaxPolicies)) {
+std::vector<std::string> Api::parse_policies(const json& body, std::size_t max_policies) const {
+  std::vector<std::string> ids;
+  for (const auto& p : get_array(body, "policies", max_policies)) {
     if (!p.is_string()) bad_request("'policies' must contain strings");
     const auto id = p.get<std::string>();
     const PolicyInfo* info = find_policy(id);
@@ -239,11 +304,22 @@ SimulateRequest Api::parse_simulate(const json& body) const {
     if (info->needs_model && !model_available()) {
       bad_request("policy '" + id + "' is unavailable: " + model_error_);
     }
-    if (std::find(req.policies.begin(), req.policies.end(), id) != req.policies.end()) {
+    if (std::find(ids.begin(), ids.end(), id) != ids.end()) {
       bad_request("policy '" + id + "' is listed twice");
     }
-    req.policies.push_back(id);
+    ids.push_back(id);
   }
+  return ids;
+}
+
+SimulateRequest Api::parse_simulate(const json& body) const {
+  check_fields(body,
+               {"trace", "policies", "cache_sizes", "max_requests", "warmup", "series_points"});
+
+  SimulateRequest req;
+
+  req.trace = parse_trace(body);
+  req.policies = parse_policies(body, Limits::kMaxPolicies);
 
   for (const auto& s : get_array(body, "cache_sizes", Limits::kMaxSizes)) {
     const auto size = as_uint(s);
@@ -260,7 +336,7 @@ SimulateRequest Api::parse_simulate(const json& body) const {
   req.max_requests =
       get_uint(body, "max_requests", Limits::kDefaultRequests, 1, Limits::kMaxRequests);
   const std::uint64_t replayed = std::min(req.max_requests, req.trace.requests);
-  if (replayed == 0) bad_request("trace '" + name + "' is empty");
+  if (replayed == 0) bad_request("trace '" + req.trace.name + "' is empty");
   req.warmup = get_uint(body, "warmup", 0, 0, replayed - 1);
   req.series_points = static_cast<std::uint32_t>(get_uint(
       body, "series_points", Limits::kDefaultPoints, Limits::kMinPoints, Limits::kMaxPoints));
@@ -285,41 +361,112 @@ json Api::simulate(const json& body) const {
     for (const auto size : req.cache_sizes) runs.push_back({p, size});
   }
 
-  // Runs are independent: each worker takes the next index and writes only its own slot. Every
-  // run gets its own reader (readers hold a file position) and a fresh policy.
+  // Runs are independent: each one writes only its own slot, and gets its own reader (readers
+  // hold a file position) and a fresh policy.
   std::vector<json> results(runs.size());
-  std::vector<std::exception_ptr> errors(runs.size());
-  std::atomic<std::size_t> next{0};
-  const auto work = [&] {
-    for (std::size_t i = next.fetch_add(1); i < runs.size(); i = next.fetch_add(1)) {
-      try {
-        const auto run_start = std::chrono::steady_clock::now();
-        const auto reader = make_reader(req.trace.format, req.trace.path);
-        const auto policy = make_policy(runs[i].policy, config_for(runs[i].cache_size));
-        const SimResult r = lcache::simulate(*reader, *policy,
-                                             {.capacity_bytes = runs[i].cache_size,
-                                              .max_requests = req.max_requests,
-                                              .warmup_requests = req.warmup,
-                                              .series_interval = interval});
-        results[i] =
-            result_json(runs[i].policy, runs[i].cache_size, r, interval, ms_since(run_start));
-      } catch (...) {
-        errors[i] = std::current_exception();
-      }
-    }
-  };
-  {
-    const auto n = std::min<std::size_t>(options_.workers, runs.size());
-    std::vector<std::jthread> workers;
-    workers.reserve(n);
-    for (std::size_t w = 0; w < n; ++w) workers.emplace_back(work);
-  }  // jthreads join here
-  for (const auto& e : errors) {
-    if (e) std::rethrow_exception(e);
-  }
+  run_parallel(runs.size(), options_.workers, [&](std::size_t i) {
+    const auto run_start = std::chrono::steady_clock::now();
+    const auto reader = make_reader(req.trace.format, req.trace.path);
+    const auto policy = make_policy(runs[i].policy, config_for(runs[i].cache_size));
+    const SimResult r = lcache::simulate(*reader, *policy,
+                                         {.capacity_bytes = runs[i].cache_size,
+                                          .max_requests = req.max_requests,
+                                          .warmup_requests = req.warmup,
+                                          .series_interval = interval});
+    results[i] = result_json(runs[i].policy, runs[i].cache_size, r, interval, ms_since(run_start));
+  });
 
   return {{"trace", req.trace.name},     {"max_requests", req.max_requests}, {"warmup", req.warmup},
           {"series_interval", interval}, {"elapsed_ms", ms_since(start)},    {"results", results}};
+}
+
+WindowRequest Api::parse_window(const json& body) const {
+  check_fields(body, {"trace", "policies", "slots", "start", "length"});
+  WindowRequest req;
+  req.trace = parse_trace(body);
+  req.policies = parse_policies(body, WindowLimits::kMaxPolicies);
+  req.slots = get_uint(body, "slots", WindowLimits::kDefaultSlots, WindowLimits::kMinSlots,
+                       WindowLimits::kMaxSlots);
+  req.start = get_uint(body, "start", 0, 0, WindowLimits::kMaxStart);
+
+  const std::string size_note =
+      " (trace '" + req.trace.name + "' has " + std::to_string(req.trace.requests) + " requests)";
+  if (req.start + WindowLimits::kMinLength > req.trace.requests) {
+    bad_request("'start' must leave at least " + std::to_string(WindowLimits::kMinLength) +
+                " requests" + size_note);
+  }
+  const std::uint64_t available = req.trace.requests - req.start;
+  if (body.contains("length")) {
+    req.length = get_uint(body, "length", WindowLimits::kDefaultLength, WindowLimits::kMinLength,
+                          WindowLimits::kMaxLength);
+    if (req.length > available) bad_request("'start' + 'length' is past the end" + size_note);
+  } else {
+    req.length = std::min(WindowLimits::kDefaultLength, available);
+  }
+  return req;
+}
+
+json Api::visualize_window(const json& body) const {
+  const auto start_time = std::chrono::steady_clock::now();
+  const WindowRequest req = parse_window(body);
+  const std::uint64_t total = req.start + req.length;
+
+  // One in-memory copy of the first `total` requests serves every policy. It is annotated for
+  // Belady, whose future therefore ends with the window (as with max_requests).
+  const auto reader = make_reader(req.trace.format, req.trace.path);
+  std::vector<Request> trace = annotate_next_access(*reader, total);
+  if (trace.size() < total) {  // oracleGeneral skips zero-size records, so the count can be short
+    bad_request("trace '" + req.trace.name + "' has only " + std::to_string(trace.size()) +
+                " requests");
+  }
+  for (auto& r : trace) r.size = 1;  // capacity counts objects: one slot per object (D27)
+
+  std::vector<WindowRun> runs(req.policies.size());
+  run_parallel(runs.size(), options_.workers, [&](std::size_t i) {
+    runs[i] = replay_window(make_policy(req.policies[i], config_for(req.slots)), trace, req);
+  });
+
+  // Labels in order of first appearance: what is cached at `start` (per policy, in slot order),
+  // then the window's requests. Every evicted or cached key is one of these.
+  std::unordered_map<Key, std::string> labels;
+  json keys = json::object();
+  const auto label = [&](Key k) -> const std::string& {
+    const auto [it, added] = labels.try_emplace(k);
+    if (added) {
+      it->second = key_label(labels.size() - 1);
+      keys[it->second] = std::to_string(k);  // u64 ids as strings: JSON numbers lose precision
+    }
+    return it->second;
+  };
+  const auto slots_json = [&](const std::vector<std::optional<Key>>& slots) {
+    json out = json::array();
+    for (const auto& k : slots) out.push_back(k ? json(label(*k)) : json(nullptr));
+    return out;
+  };
+  for (const auto& run : runs) slots_json(run.initial);
+  json requests = json::array();
+  for (std::uint64_t j = req.start; j < total; ++j) requests.push_back(label(trace[j].key));
+
+  json policies = json::array();
+  for (std::size_t i = 0; i < runs.size(); ++i) {
+    json steps = json::array();
+    for (const auto& step : runs[i].steps) {
+      json evicted = json::array();
+      for (const Key k : step.evicted) evicted.push_back(label(k));
+      steps.push_back({{"hit", step.hit},
+                       {"slot", step.slot ? json(*step.slot) : json(nullptr)},
+                       {"evicted", evicted},
+                       {"slots", slots_json(step.slots)}});
+    }
+    policies.push_back({{"policy", req.policies[i]},
+                        {"hits", runs[i].hits},
+                        {"initial", slots_json(runs[i].initial)},
+                        {"steps", steps}});
+  }
+  return {{"trace", req.trace.name}, {"start", req.start},
+          {"slots", req.slots},      {"length", req.length},
+          {"requests", requests},    {"keys", keys},
+          {"policies", policies},    {"elapsed_ms", ms_since(start_time)}};
 }
 
 }  // namespace lcache::api
