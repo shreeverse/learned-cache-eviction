@@ -1,6 +1,15 @@
 #!/usr/bin/env bash
 # Downloads sample traces into data/ (gitignored) and verifies their checksums.
+#   tools/fetch_traces.sh           # cloudPhysicsIO (2.7 MB) and Twitter cluster26 (784 MB download)
+#   tools/fetch_traces.sh --small   # cloudPhysicsIO only (what CI needs for the golden test)
 set -euo pipefail
+
+small=false
+case "${1:-}" in
+  "") ;;
+  --small) small=true ;;
+  *) echo "usage: $0 [--small]" >&2; exit 2 ;;
+esac
 
 cd "$(dirname "$0")/.."
 mkdir -p data
@@ -21,6 +30,11 @@ fetch() {
 fetch "https://raw.githubusercontent.com/1a1a11a/libCacheSim/$LCS_COMMIT/data/cloudPhysicsIO.oracleGeneral.bin" \
   data/cloudPhysicsIO.oracleGeneral.bin \
   65438dd7b2d3dec7ffe8a5c9348045da92de3311f339b7b59c9a0a44e6050dea
+
+if $small; then
+  echo "traces OK (cloudPhysicsIO only)"
+  exit 0
+fi
 
 # Twitter cluster26 (Yang et al., OSDI '20), from the CMU PDL mirror that libCacheSim links to.
 # The full trace is 784 MB compressed; we keep the first 10M requests (24-byte records) as an
