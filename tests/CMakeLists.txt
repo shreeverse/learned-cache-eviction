@@ -80,3 +80,10 @@ add_executable(server_net_test
   server/network_test.cpp)
 target_link_libraries(server_net_test PRIVATE lc_server_net GTest::gtest_main lc_warnings)
 gtest_discover_tests(server_net_test)
+
+add_executable(api_test
+  api/api_test.cpp)
+target_include_directories(api_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_definitions(api_test PRIVATE LC_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data")
+target_link_libraries(api_test PRIVATE lc_api GTest::gtest_main lc_warnings)
+gtest_discover_tests(api_test)

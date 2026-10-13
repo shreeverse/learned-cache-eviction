@@ -37,4 +37,36 @@ class TempFile {
   std::filesystem::path path_;
 };
 
+// A fresh directory in GoogleTest's temp dir, named after the running test, removed with its
+// contents when it goes out of scope.
+class TempDir {
+ public:
+  TempDir() {
+    const auto* info = ::testing::UnitTest::GetInstance()->current_test_info();
+    path_ = std::filesystem::path(::testing::TempDir()) /
+            (std::string(info->test_suite_name()) + "_" + info->name() + "_dir");
+    std::filesystem::remove_all(path_);
+    std::filesystem::create_directories(path_);
+  }
+  TempDir(const TempDir&) = delete;
+  TempDir& operator=(const TempDir&) = delete;
+  TempDir(TempDir&&) = delete;
+  TempDir& operator=(TempDir&&) = delete;
+  ~TempDir() {
+    std::error_code ec;
+    std::filesystem::remove_all(path_, ec);
+  }
+
+  const std::filesystem::path& path() const { return path_; }
+
+  // Writes `bytes` to `name` inside the directory.
+  void write(const std::string& name, std::string_view bytes) const {
+    std::ofstream out(path_ / name, std::ios::binary | std::ios::trunc);
+    out.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
+  }
+
+ private:
+  std::filesystem::path path_;
+};
+
 }  // namespace lcache::test
