@@ -380,3 +380,22 @@ Full design: `docs/m5-design.md`.
   25 µs every shard tripped on its first learned eviction (the server measured about 70 µs per
   learned eviction with 64 candidates), so the right budget or candidate count is chosen after
   profiling (docs/m5-results.md, section 6).
+
+## D26. Simulation API in C++, exact bucketed series, one simulation at a time (M6)
+
+Full design: `docs/m6-design.md`.
+
+- **C++ API (cpp-httplib + nlohmann/json) linking `lc_sim` in-process.** **Rejected:** FastAPI
+  around `cachesim` (CLAUDE.md keeps Python to training and plotting; it would also parse CSV
+  from a subprocess); HTTP by hand on the server's Asio (2–3× the code for no measured gain at
+  a few requests per minute).
+- **Handlers without HTTP:** `lc_api` maps JSON to JSON and throws `ApiError{status}`; only
+  `main.cpp` knows httplib, so validation and simulation are unit-tested without sockets.
+- **Downsampling = exact per-interval counts from the simulator** (`SimOptions::series_interval`),
+  interval = ceil(N / points). **Rejected:** sampling points or LTTB, which approximate a signal
+  that can be aggregated exactly.
+- **Blocking request, capped, one at a time (429 when busy), up to 8 runs in parallel.** Measured
+  at 1M requests: 0.12 s (LRU) to 6.2 s (learned) per run; Belady needs 530 MB at 10M, so
+  concurrency is capped. **Rejected for now:** a job queue with polling.
+- **Traces are named, never pathed:** the client sends a name that must appear in the server's
+  listing of `--data-dir`.
