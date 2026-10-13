@@ -109,6 +109,71 @@ TEST(Simulate, RewindsReaderSoItCanBeReplayed) {
   EXPECT_EQ(b.hits, a.hits);
 }
 
+// ---- series_interval ----------------------------------------------------------------------
+
+TEST(SimulateSeries, OffByDefault) {
+  VectorReader reader({req(1), req(1)});
+  LruPolicy lru;
+  EXPECT_TRUE(simulate(reader, lru, {.capacity_bytes = 10}).series.empty());
+}
+
+TEST(SimulateSeries, BucketsPerIntervalWithPartialLast) {
+  // Capacity 1 object of size 2. Hits: 1 m, 1 h, 2 m, 2 h, 1 m, 1 h, 1 h.
+  VectorReader reader(
+      {req(1, 2), req(1, 2), req(2, 2), req(2, 2), req(1, 2), req(1, 2), req(1, 2)});
+  LruPolicy lru;
+  const auto r = simulate(reader, lru, {.capacity_bytes = 2, .series_interval = 3});
+  ASSERT_EQ(r.series.size(), 3U);
+  EXPECT_EQ(r.series[0].requests, 3U);  // 1 m, 1 h, 2 m
+  EXPECT_EQ(r.series[0].hits, 1U);
+  EXPECT_EQ(r.series[1].requests, 3U);  // 2 h, 1 m, 1 h
+  EXPECT_EQ(r.series[1].hits, 2U);
+  EXPECT_EQ(r.series[2].requests, 1U);  // 1 h (partial)
+  EXPECT_EQ(r.series[2].hits, 1U);
+  EXPECT_EQ(r.series[2].bytes_requested, 2U);
+  EXPECT_EQ(r.series[2].bytes_hit, 2U);
+}
+
+TEST(SimulateSeries, BucketsSumToTotals) {
+  std::vector<Request> trace;
+  for (std::uint32_t i = 0; i < 1000; ++i) trace.push_back(req((i * 7919U) % 37U, 1 + i % 5));
+  VectorReader reader(std::move(trace));
+  LruPolicy lru;
+  const auto r = simulate(reader, lru, {.capacity_bytes = 40, .series_interval = 64});
+  ASSERT_EQ(r.series.size(), 16U);  // ceil(1000 / 64)
+  SeriesBucket sum;
+  for (const auto& b : r.series) {
+    sum.requests += b.requests;
+    sum.hits += b.hits;
+    sum.bytes_requested += b.bytes_requested;
+    sum.bytes_hit += b.bytes_hit;
+  }
+  EXPECT_EQ(sum.requests, r.requests);
+  EXPECT_EQ(sum.hits, r.hits);
+  EXPECT_EQ(sum.bytes_requested, r.bytes_requested);
+  EXPECT_EQ(sum.bytes_hit, r.bytes_hit);
+}
+
+TEST(SimulateSeries, WarmupIsNotInTheSeries) {
+  // Warmup: 1 m, 1 h. Counted: 1 h, 1 h, 2 m.
+  VectorReader reader({req(1), req(1), req(1), req(1), req(2)});
+  LruPolicy lru;
+  const auto r =
+      simulate(reader, lru, {.capacity_bytes = 1, .warmup_requests = 2, .series_interval = 2});
+  ASSERT_EQ(r.series.size(), 2U);
+  EXPECT_EQ(r.series[0].requests, 2U);
+  EXPECT_EQ(r.series[0].hits, 2U);
+  EXPECT_EQ(r.series[1].requests, 1U);
+  EXPECT_EQ(r.series[1].hits, 0U);
+}
+
+TEST(SimulateSeries, ExactMultipleHasNoEmptyTrailingBucket) {
+  VectorReader reader({req(1), req(1), req(1), req(1)});
+  LruPolicy lru;
+  const auto r = simulate(reader, lru, {.capacity_bytes = 1, .series_interval = 2});
+  EXPECT_EQ(r.series.size(), 2U);
+}
+
 }  // namespace
 }  // namespace lcache
 

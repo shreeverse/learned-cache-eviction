@@ -25,11 +25,23 @@ SimResult replay(TraceReader& reader, EvictionPolicy& policy, const SimOptions& 
 
     const bool hit = cache.access(r);
     if (replayed++ < options.warmup_requests) continue;
+    if (options.series_interval > 0 && result.requests % options.series_interval == 0) {
+      result.series.emplace_back();  // first counted request of a new interval
+    }
     ++result.requests;
     result.bytes_requested += real_size;
     if (hit) {
       ++result.hits;
       result.bytes_hit += real_size;
+    }
+    if (options.series_interval > 0) {
+      SeriesBucket& b = result.series.back();
+      ++b.requests;
+      b.bytes_requested += real_size;
+      if (hit) {
+        ++b.hits;
+        b.bytes_hit += real_size;
+      }
     }
   }
   return result;
