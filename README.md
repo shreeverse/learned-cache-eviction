@@ -1,5 +1,7 @@
 # Learned Cache Eviction
 
+[![CI](https://github.com/shreeverse/learned-cache-eviction/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/shreeverse/learned-cache-eviction/actions/workflows/ci.yml)
+
 A cache eviction policy that **predicts which objects won't be needed soon** with a gradient-boosted
 tree model, evicts those first, and **falls back to W-TinyLFU on its own** when the model loses or
 runs over its time budget. It is written in C++20, benchmarked against LRU, LFU, ARC, W-TinyLFU and
@@ -11,9 +13,10 @@ the learned policy hits **68.08%** of requests vs **55.58%** for W-TinyLFU and 8
 closing 47% of the gap to the optimum. It is **not** a win everywhere (see the table); the
 fallback guard limits the damage where it loses.
 
-> Status: milestones 1–6 of 7 are done (simulator, classic policies, learned policy, fallback,
-> network server, web dashboard with `docker compose up`). CI is not built yet; see
-> [Project status](#project-status).
+> Status: milestones 1–6 are done (simulator, classic policies, learned policy, fallback,
+> network server, web dashboard with `docker compose up`). Milestone 7: the write-up, Docker and
+> CI (every push builds and tests under Release, ASan + UBSan and TSan, lints and builds the
+> dashboard, and smoke-tests `docker compose up`) are done; see [Project status](#project-status).
 
 ## Architecture
 
@@ -99,6 +102,30 @@ measurement noise.
 <p align="center">
   <img src="docs/img/m3_latency_tradeoff.png" alt="Hit rate vs time per eviction" width="640">
 </p>
+
+These are one run's medians (measured 2026-10-01, [`docs/m3-results.md`](docs/m3-results.md));
+a later run (M4, [`docs/m4-results.md`](docs/m4-results.md)) measured 20–30% lower times, so
+compare rows only within one run.
+
+### Network server
+
+`lcache-server` is a sharded store (64 shards, each with its own policy instance behind a mutex)
+on N Asio I/O threads, speaking enough RESP2 (GET, SET, DEL, ...) for `redis-cli` and
+`redis-benchmark` (D22). Measured with `redis-benchmark` against `redis-server` 6.0.16, both
+given 32 MiB so every run evicts, uniform random keys, one run per configuration (i7-12700H,
+WSL2; [`docs/m5-results.md`](docs/m5-results.md)):
+
+- **One I/O thread, no pipelining: about Redis's throughput** (LRU within 8% of Redis in 6 of 8
+  settings).
+- **8 I/O threads, no pipelining: 1.9–2.5× Redis's GET throughput and 2.4–2.9× its SET
+  throughput, GET p99 0.44–1.28 ms vs 0.82–2.77 ms.** Redis 6 runs commands on one thread, so
+  this is lcache's best configuration against Redis's only one.
+- **The learned policy is expensive inside the server: about 70 µs per eviction.** Guarded SETs
+  reach 58k/s at 8 threads (50 clients, 1 KiB values) vs 250k/s for W-TinyLFU. A 10 or 25 µs
+  time budget brings throughput back to 205–216k/s, but only because the latency breaker switches
+  every shard to W-TinyLFU: it guards latency, and at that budget it turns the model off.
+- Thread safety: a stress test (8 threads, 7 policies including the learned one) and the server
+  under `redis-benchmark` are TSan clean; with a lock removed, the stress test does report races.
 
 ## Dashboard
 
@@ -207,6 +234,10 @@ build/release/apps/cachesim/cachesim -t data/twitter_cluster26_10M.oracleGeneral
 # Latency benchmark (needs the Twitter trace)
 build/release/bench/eviction_bench
 
+# Everything CI checks, locally: the C++ build and tests under release, asan and tsan (warnings
+# as errors), dashboard lint and build, and a docker compose smoke test (decisions D29)
+tools/ci.sh all
+
 # Dashboard: the simulation API, then the React app on http://localhost:5173
 build/release/api/lcache-api        # from the repo root; serves the traces in data/
 cd web && npm ci && npm run dev     # in a second terminal (see web/README.md)
@@ -264,7 +295,9 @@ build/release/apps/export/lcache-export -t $T -c 1MiB -n 5000000 --every 50 --hi
 - The learned policy reduces exactly to LRU (age scores) and to Belady (oracle scores) when every
   cached key is a candidate.
 - All tests pass under AddressSanitizer + UndefinedBehaviorSanitizer and ThreadSanitizer, with
-  third-party code (including LightGBM) instrumented too.
+  third-party code (including LightGBM) instrumented too. CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml))
+  checks this on every push and pull request with warnings as errors, on the same GCC 11.4 and
+  CMake 3.22 the results were measured with (D29).
 
 ## Project status
 
@@ -276,7 +309,7 @@ build/release/apps/export/lcache-export -t $T -c 1MiB -n 5000000 --every 50 --hi
 | 4. Defensive fallback (shadow W-TinyLFU, time budget) | done |
 | 5. Network server (sharded store, Redis RESP subset) | done |
 | 6. Web dashboard (`docker compose up`, eviction window) | done |
-| 7. Docker, CI, final write-up | README and Docker done; CI not started |
+| 7. Docker, CI, final write-up | README, `docker compose up` and CI (GitHub Actions, `tools/ci.sh`) done |
 
 Open problems, measured and written up in [`docs/m4-results.md`](docs/m4-results.md): the learned
 policy does badly on caches W-TinyLFU shaped; the model is weak at Twitter 512 KiB; the guard's
@@ -284,8 +317,9 @@ settings are request counts, too large for short traces.
 
 ## Further reading
 
-- [`docs/decisions.md`](docs/decisions.md): every design decision and rejected alternative (D1–D28)
+- [`docs/decisions.md`](docs/decisions.md): every design decision and rejected alternative (D1–D29)
 - [`docs/m3-design.md`](docs/m3-design.md): learned-policy design
 - [`docs/m5-design.md`](docs/m5-design.md), [`docs/m6-design.md`](docs/m6-design.md),
   [`docs/m6-part2-design.md`](docs/m6-part2-design.md): server and dashboard designs
-- [`docs/m3-results.md`](docs/m3-results.md), [`docs/m4-results.md`](docs/m4-results.md): all measurements, with commands
+- [`docs/m3-results.md`](docs/m3-results.md), [`docs/m4-results.md`](docs/m4-results.md),
+  [`docs/m5-results.md`](docs/m5-results.md): all measurements, with commands
