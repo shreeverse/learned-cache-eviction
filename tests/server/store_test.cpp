@@ -323,6 +323,16 @@ TEST(ShardedStore, StatsSumOverShards) {
   EXPECT_EQ(s.misses, 50U);
 }
 
+TEST(ShardedStore, VisitPoliciesSeesEveryShardsPolicy) {
+  ShardedStore store(1 << 20, 4, lru_maker());
+  int visits = 0;
+  store.visit_policies([&visits](const EvictionPolicy& p) {
+    EXPECT_EQ(p.name(), "lru");
+    ++visits;
+  });
+  EXPECT_EQ(visits, 4);
+}
+
 TEST(ShardedStore, RejectsBadConfig) {
   EXPECT_THROW(ShardedStore(1024, 0, lru_maker()), std::invalid_argument);
   EXPECT_THROW(ShardedStore(1024, 3, lru_maker()), std::invalid_argument);

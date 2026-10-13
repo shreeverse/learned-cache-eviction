@@ -135,6 +135,11 @@ StoreStats Shard::stats() const {
   return stats_;
 }
 
+void Shard::visit_policy(const std::function<void(const EvictionPolicy&)>& f) const {
+  const std::lock_guard lock(mu_);
+  f(*policy_);
+}
+
 // ---- ShardedStore ----------------------------------------------------------------------------
 
 PolicyMaker make_policy_maker(std::string name, PolicyConfig config) {
@@ -202,6 +207,10 @@ StoreStats ShardedStore::stats() const {
   StoreStats total;
   for (const auto& s : shards_) total += s->stats();
   return total;
+}
+
+void ShardedStore::visit_policies(const std::function<void(const EvictionPolicy&)>& f) const {
+  for (const auto& s : shards_) s->visit_policy(f);
 }
 
 }  // namespace lcache::server

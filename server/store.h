@@ -69,6 +69,9 @@ class alignas(64) Shard {
   std::uint64_t capacity_bytes() const { return capacity_bytes_; }  // immutable
   std::size_t size() const;
   StoreStats stats() const;
+  // Calls f with the policy under the shard lock, e.g. to read a policy's own counters.
+  // `f` must not call back into the store.
+  void visit_policy(const std::function<void(const EvictionPolicy&)>& f) const;
 
  private:
   struct Entry {
@@ -117,6 +120,8 @@ class ShardedStore {
   const Shard& shard(std::size_t i) const { return *shards_.at(i); }
   // Sums over shards; each shard is read under its own lock, so not an atomic snapshot.
   StoreStats stats() const;
+  // Calls f with each shard's policy in turn, each under its shard's lock.
+  void visit_policies(const std::function<void(const EvictionPolicy&)>& f) const;
 
  private:
   std::size_t shard_index(Key id) const;

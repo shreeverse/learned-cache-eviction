@@ -11,9 +11,39 @@
 
 #include "apps/cachesim/size_parse.h"
 #include "ml/model_meta.h"
+#include "policy/fallback.h"
 #include "policy/policy_factory.h"
 #include "server/server.h"
 #include "server/store.h"
+
+namespace {
+
+// Totals of the per-shard FallbackPolicy counters (decisions D21), to see in benchmarks how
+// often the guard tripped and which policy made the evictions.
+void print_guard_summary(const lcache::server::ShardedStore& store) {
+  lcache::FallbackPolicy::Stats total;
+  std::size_t learned_mode = 0;
+  store.visit_policies([&](const lcache::EvictionPolicy& p) {
+    const auto& g = dynamic_cast<const lcache::FallbackPolicy&>(p);
+    const auto& st = g.stats();
+    total.learned_evictions += st.learned_evictions;
+    total.fallback_evictions += st.fallback_evictions;
+    total.hit_rate_trips += st.hit_rate_trips;
+    total.latency_trips += st.latency_trips;
+    total.budget_breaches += st.budget_breaches;
+    total.retries += st.retries;
+    if (g.mode() == lcache::FallbackPolicy::Mode::kLearned) ++learned_mode;
+  });
+  std::cout << "guard: learned_evictions=" << total.learned_evictions
+            << " fallback_evictions=" << total.fallback_evictions
+            << " hit_rate_trips=" << total.hit_rate_trips
+            << " latency_trips=" << total.latency_trips
+            << " budget_breaches=" << total.budget_breaches << " retries=" << total.retries
+            << " shards_in_learned_mode=" << learned_mode << "/" << store.shard_count()
+            << std::endl;
+}
+
+}  // namespace
 
 int main(int argc, char** argv) try {
   CLI::App app{"lcache-server: a sharded cache server speaking the Redis protocol"};
@@ -79,6 +109,7 @@ int main(int argc, char** argv) try {
   std::cout << "hits=" << s.hits << " misses=" << s.misses << " sets=" << s.sets
             << " evictions=" << s.evictions << " collisions=" << s.collisions
             << " too_large=" << s.too_large << std::endl;
+  if (policy == "guarded") print_guard_summary(store);
   return 0;
 } catch (const std::exception& e) {
   std::cerr << "lcache-server: " << e.what() << '\n';
