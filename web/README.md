@@ -23,12 +23,16 @@ terminal 1 is not running.
 
 Other scripts: `npm run lint` (oxlint), `npm run build` (static files in `dist/`).
 
+In Docker (`docker compose up --build` from the repo root), the `Dockerfile` here builds the
+static files with Node and serves them with nginx on port 3000; `nginx.conf` forwards `/api/` to
+the API container, so the code is the same in both setups.
+
 ## Code map
 
 | file | role |
 |---|---|
 | `src/main.jsx` | entry point: renders `<App />` into `index.html` |
-| `src/App.jsx` | loads traces and policies, runs simulations, holds loading / error state; `ResultsView` holds the view controls |
+| `src/App.jsx` | loads traces and policies, the two tabs, runs simulations, holds loading / error state; `ResultsView` holds the view controls |
 | `src/api.js` | `fetch` wrappers; turns `{"error": ...}` replies into thrown `Error`s |
 | `src/format.js` | byte sizes, counts, percentages, log-spaced cache sizes |
 | `src/colors.js` | fixed colour per policy (validated palette, light and dark) |
@@ -37,6 +41,7 @@ Other scripts: `npm run lint` (oxlint), `npm run build` (static files in `dist/`
 | `src/components/SeriesChart.jsx` | hit rate over the trace at one size (server-downsampled) |
 | `src/components/ResultsTable.jsx` | every number behind the charts |
 | `src/components/ChartTooltip.jsx` | hover tooltip shared by both charts |
+| `src/components/EvictionVisualizer.jsx` | the Eviction window tab: its form, playback (timer in `useEffect`), request strip and one lane of slots per policy |
 
 ## Versions
 

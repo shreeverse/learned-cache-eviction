@@ -11,8 +11,8 @@ the learned policy hits **68.08%** of requests vs **55.58%** for W-TinyLFU and 8
 closing 47% of the gap to the optimum. It is **not** a win everywhere (see the table); the
 fallback guard limits the damage where it loses.
 
-> Status: milestones 1–4 of 7 are done (simulator, classic policies, learned policy, fallback).
-> The network server, web dashboard, Docker setup and CI are not built yet; see
+> Status: milestones 1–6 of 7 are done (simulator, classic policies, learned policy, fallback,
+> network server, web dashboard with `docker compose up`). CI is not built yet; see
 > [Project status](#project-status).
 
 ## Architecture
@@ -100,6 +100,27 @@ measurement noise.
   <img src="docs/img/m3_latency_tradeoff.png" alt="Hit rate vs time per eviction" width="640">
 </p>
 
+## Dashboard
+
+`docker compose up --build` runs the simulation API and a React dashboard
+([`web/`](web/README.md)) on http://localhost:3000.
+
+![Hit rate vs cache size and hit rate over the trace for five policies](docs/img/dashboard-hit-rates.png)
+
+- **Hit rates:** pick a trace, policies and a log-spaced range of cache sizes; see hit rate (or
+  byte hit rate) vs cache size, hit rate over the trace at one size, and a table of every number.
+  The server sends at most 200 points per run, each the exact hit rate of its interval (D26),
+  so a 10M-request trace doesn't slow the browser.
+- **Eviction window:** replay 10–100 requests at 2–16 object slots and step through what up to
+  four policies keep and evict, request by request (D27).
+
+![Eviction window: LRU, W-TinyLFU, Belady and the learned policy over 60 requests](docs/img/dashboard-eviction-window.png)
+
+The screenshots were taken from the `docker compose` stack. In the window above (8 slots,
+cloudPhysicsIO), Belady evicts `W` the moment it arrives because `W` is not requested again in the
+window, while LRU keeps it. The learned model was trained on byte sizes at 1 MiB, so it is not
+meaningful at a few object slots (0 hits in the first 31 requests here).
+
 ## Systems and ML insights
 
 Each item is a decision record in [`docs/decisions.md`](docs/decisions.md) with the measurements
@@ -162,7 +183,7 @@ and pinned by hash at configure time.
 # Build (presets: debug, release, asan = ASan+UBSan, tsan)
 cmake --preset release && cmake --build --preset release
 
-# Unit tests (325 tests; all pass under debug, asan and tsan)
+# Unit tests (341 tests; all pass under debug, asan and tsan)
 cmake --preset debug && cmake --build --preset debug
 ctest --preset debug --output-on-failure
 # TSan on WSL2 needs ASLR off for the test process (docs/decisions.md D5):
@@ -191,6 +212,18 @@ build/release/api/lcache-api        # from the repo root; serves the traces in d
 cd web && npm ci && npm run dev     # in a second terminal (see web/README.md)
 ```
 
+Or run the dashboard and API in Docker (no local toolchain needed besides Docker):
+
+```bash
+tools/fetch_traces.sh          # first: traces go to ./data, mounted read-only into the API
+docker compose up --build      # dashboard: http://localhost:3000, API: http://localhost:8000
+docker compose down            # stop
+```
+
+The API image builds only `lcache-api` (no tests, benchmarks or LightGBM: the learned policy uses
+the compiled tree evaluator) and runs as a non-root user; nginx serves the dashboard and forwards
+`/api/` to it. Both ports are bound to 127.0.0.1 (decisions D28).
+
 Train a model (see [`models/README.md`](models/README.md) for the exact commands behind the
 committed models):
 
@@ -214,8 +247,9 @@ build/release/apps/export/lcache-export -t $T -c 1MiB -n 5000000 --every 50 --hi
 | `ml/` | feature tracker, predictors (compiled evaluator, LightGBM, oracle), training-data recorder, model metadata |
 | `apps/` | `cachesim` (replay), `lcache-export` (training data), `lcache-replay` (trace over RESP) |
 | `server/` | sharded thread-safe store, RESP2 parser, Asio server (`lcache-server`) |
-| `api/` | JSON HTTP API over the simulator (`lcache-api`) |
+| `api/` | JSON HTTP API over the simulator (`lcache-api`): simulations, eviction windows |
 | `web/` | React dashboard (Vite, plain JavaScript, Recharts) |
+| `docker-compose.yml` | API and dashboard containers (`api/Dockerfile`, `web/Dockerfile`) |
 | `bench/` | Google Benchmark latency suite |
 | `tools/` | trace fetching, training, plotting, and the scripts that reproduce every result |
 | `models/` | the two trained Twitter models with their `.meta` settings |
@@ -241,8 +275,8 @@ build/release/apps/export/lcache-export -t $T -c 1MiB -n 5000000 --every 50 --hi
 | 3. Learned policy (features, LightGBM, sampled eviction) | done |
 | 4. Defensive fallback (shadow W-TinyLFU, time budget) | done |
 | 5. Network server (sharded store, Redis RESP subset) | done |
-| 6. Web dashboard | part 1 done (API + dashboard); `docker compose` and screenshot next |
-| 7. Docker, CI, final write-up | README done; Docker and CI not started |
+| 6. Web dashboard (`docker compose up`, eviction window) | done |
+| 7. Docker, CI, final write-up | README and Docker done; CI not started |
 
 Open problems, measured and written up in [`docs/m4-results.md`](docs/m4-results.md): the learned
 policy does badly on caches W-TinyLFU shaped; the model is weak at Twitter 512 KiB; the guard's
@@ -250,8 +284,8 @@ settings are request counts, too large for short traces.
 
 ## Further reading
 
-- [`docs/decisions.md`](docs/decisions.md): every design decision and rejected alternative (D1–D26)
+- [`docs/decisions.md`](docs/decisions.md): every design decision and rejected alternative (D1–D28)
 - [`docs/m3-design.md`](docs/m3-design.md): learned-policy design
-- [`docs/m5-design.md`](docs/m5-design.md), [`docs/m6-design.md`](docs/m6-design.md): server
-  and dashboard designs
+- [`docs/m5-design.md`](docs/m5-design.md), [`docs/m6-design.md`](docs/m6-design.md),
+  [`docs/m6-part2-design.md`](docs/m6-part2-design.md): server and dashboard designs
 - [`docs/m3-results.md`](docs/m3-results.md), [`docs/m4-results.md`](docs/m4-results.md): all measurements, with commands

@@ -75,3 +75,22 @@ and 429 (the test holds the mutex).
 - nginx `proxy_read_timeout 300s`: a 10M-request learned simulation takes minutes.
 - `.dockerignore` keeps `build/`, `data/` (1 GB), `node_modules/` and `.git/` out of the
   context.
+
+## 5. Verification (2026-10-13)
+
+- Tests: 341 pass under debug, ASan + UBSan and TSan (new: 9 visualizer, 7 HTTP integration).
+- The window's hit counts equal `cachesim --ignore-size` on the same requests (cloudPhysicsIO,
+  first 100 requests, 8 slots: LRU 23, Belady 35, learned 12), natively and in the container.
+- `docker compose up --build` from scratch: 2 min 11 s to build both images (API 124 MB, web
+  94 MB); the API turns healthy within seconds and the dashboard starts after it. Through
+  nginx on :3000, Twitter simulate results equal the native build's (LRU 1 MiB 0.503035,
+  W-TinyLFU 0.54811, Belady 0.608592).
+- Dashboard in headless Chromium: tab switching keeps each tab's state; a fifth policy is
+  disabled; stepping, playing (12 → 18 steps in 1.6 s at 4/s) and stopping at the end work; no
+  console errors. Screenshots in `docs/img/` come from the Docker stack.
+- Found in that pass: the ⏮ glyph is missing from some fonts (replaced by "Start"); showing a
+  hidden tab restarts its 300 ms slot animations (harmless).
+- The learned model is out of distribution at a few object slots (size 1, capacity 2–16):
+  on cloudPhysicsIO's first 20,000 requests at 8 slots it gets 502 hits vs LRU's 1,281 and
+  Belady's 2,588. `guarded` equals `learned` there because its 30,000-request grace period has
+  not ended. The UI says the model is out of its depth here.
