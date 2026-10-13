@@ -50,3 +50,6 @@ I am a student building this to learn and to defend it in interviews.
 - Never invent benchmark numbers; only report what was measured.
 - Small commits, one logical change each.
 - I am new to React and JavaScript. For frontend work, keep the code simple (function components, hooks, no heavy frameworks), and briefly explain React concepts (components, props, state, useEffect) the first time they appear.
+
+## Git Rules
+- Never include 'Co-authored-by:' or any AI attribution trailers in git commit messages.
