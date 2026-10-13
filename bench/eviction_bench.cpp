@@ -136,8 +136,8 @@ void register_all() {
   const std::vector<std::uint32_t> ks{16, 32, 64};
   const std::vector<std::pair<std::string, std::string>> models{{"32x31", kModelSmall},
                                                                 {"128x63", kModelBig}};
-  benchmark::RegisterBenchmark("evict/lru", evict_cycle, "lru", "", "", 64);
-  benchmark::RegisterBenchmark("evict/wtinylfu", evict_cycle, "wtinylfu", "", "", 64);
+  benchmark::RegisterBenchmark("evict/lru", evict_cycle, "lru", "", "", 64U);
+  benchmark::RegisterBenchmark("evict/wtinylfu", evict_cycle, "wtinylfu", "", "", 64U);
   for (const std::uint32_t k : ks) {
     const std::string kk = cat({"/k:", std::to_string(k)});
     benchmark::RegisterBenchmark(cat({"evict/random-sampled", kk}), evict_cycle, "random-sampled",
