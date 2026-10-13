@@ -65,8 +65,11 @@ README screenshot.
 
 ## 3. Web (`web/`)
 
-- Vite 5 + React 18.3 (JavaScript template, no TypeScript) + Recharts 2. In development Vite
-  proxies `/api` to `http://127.0.0.1:8080`, so no CORS headers are needed.
+- Vite 8 + React 19 (JavaScript template, no TypeScript) + Recharts 3, linted with oxlint (what
+  the official `create-vite` React template uses). *Changed during implementation:* the approved
+  plan said Vite 5 / React 18 / Recharts 2, but Vite 5 is three majors behind and no longer
+  maintained, so the current stable majors were pinned instead (versions in `web/README.md`).
+  In development Vite proxies `/api` to `http://127.0.0.1:8080`, so no CORS headers are needed.
 - `App` owns the state (selection, result, loading, error) and calls `api.js`.
 - `ControlPanel`: trace `<select>`, policy checkboxes, cache sizes from two log-scale sliders
   (min, max) and a point count → log-spaced sizes shown as chips, max requests, Run (disabled
@@ -74,7 +77,10 @@ README screenshot.
 - `HitRateChart`: hit rate (or byte hit rate) vs cache size, log x axis, one line per policy.
 - `SeriesChart`: hit rate over requests for one chosen cache size, from the downsampled series.
 - `ResultsTable`: policy, size, requests, hits, hit %, byte hit %, run time.
-- Loading and error states; a new run aborts the previous fetch (`AbortController`).
+- Loading and error states. The previous result stays on screen, dimmed, while a new run is in
+  progress. *Changed during implementation:* no `AbortController`. Run is disabled while a
+  simulation runs because the server cannot cancel one (it would keep the lock and answer the
+  next run with 429), so there is never a second fetch to abort.
 
 ## 4. Tests
 
@@ -84,3 +90,21 @@ README screenshot.
   `simulate()` calls; series length ≤ `series_points`.
 - ASan/UBSan and TSan presets (the worker pool). Frontend: `npm run lint` and `npm run build`.
 - Manual: `curl` each endpoint against `data/`; the dashboard against the running API.
+
+## 5. Verification (2026-10-13)
+
+- Tests: 325 pass under debug, ASan + UBSan and TSan (new: `api_test` 13, `sim_test` 5).
+- `lcache-api` against `cachesim` on Twitter, first 1M requests: identical hit rates for LRU
+  (1 MiB: 0.503035, 64 MiB: 0.915976), W-TinyLFU (1 MiB: 0.54811) and Belady (1 MiB: 0.608592).
+- One request with 7 policies × 4 sizes (28 runs, 1M requests each): 10.8 s wall time, 95 KB
+  response (200 points per run). The slowest run, learned at 1 MiB (9.8 s), sets the wall time.
+- Concurrency: three simultaneous `POST /api/simulate` gave one 200 and two 429; TSan clean.
+  SIGINT shuts the server down cleanly (exit 0, no ASan leak report).
+- Dashboard, driven by headless Chromium (Playwright) through the Vite proxy: load, run (5
+  policies × 5 sizes on Twitter in about 7.5 s), tooltip, metric and size switches, light and
+  dark mode, 390 px width without horizontal page scroll, API down (error banner, Run
+  disabled), server busy (429 shown). No console errors or warnings.
+- Found and fixed in that pass: the requests field had `step=100000` with `min=1`, so the
+  browser's form validation rejected the default 1,000,000 and Run did nothing.
+- The production bundle is 569 KB minified (mostly Recharts); Vite warns above 500 KB. Not
+  split for now: it is a local tool loaded once.

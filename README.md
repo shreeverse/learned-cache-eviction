@@ -154,14 +154,15 @@ learning-to-rank, 5× more training rows, and scaling the window without normali
 ## Quickstart
 
 Requirements: Linux (tested on WSL2 / Ubuntu 22.04 with GCC 11.4), CMake ≥ 3.22, Ninja,
-`zstd`, Python 3.10 (training and plots only). Dependencies (GoogleTest, Google Benchmark,
-CLI11, LightGBM 4.5.0) are fetched and pinned by hash at configure time.
+`zstd`, Python 3.10 (training and plots only), Node.js 22 (dashboard only). Dependencies
+(GoogleTest, Google Benchmark, CLI11, LightGBM 4.5.0, Asio, cpp-httplib, nlohmann/json) are fetched
+and pinned by hash at configure time.
 
 ```bash
 # Build (presets: debug, release, asan = ASan+UBSan, tsan)
 cmake --preset release && cmake --build --preset release
 
-# Unit tests (211 tests; all pass under debug, asan and tsan)
+# Unit tests (325 tests; all pass under debug, asan and tsan)
 cmake --preset debug && cmake --build --preset debug
 ctest --preset debug --output-on-failure
 # TSan on WSL2 needs ASLR off for the test process (docs/decisions.md D5):
@@ -184,6 +185,10 @@ build/release/apps/cachesim/cachesim -t data/twitter_cluster26_10M.oracleGeneral
 
 # Latency benchmark (needs the Twitter trace)
 build/release/bench/eviction_bench
+
+# Dashboard: the simulation API, then the React app on http://localhost:5173
+build/release/api/lcache-api        # from the repo root; serves the traces in data/
+cd web && npm ci && npm run dev     # in a second terminal (see web/README.md)
 ```
 
 Train a model (see [`models/README.md`](models/README.md) for the exact commands behind the
@@ -207,7 +212,10 @@ build/release/apps/export/lcache-export -t $T -c 1MiB -n 5000000 --every 50 --hi
 | `sketch/` | count-min sketch (W-TinyLFU) |
 | `sim/` | byte-capacity cache and trace-driven simulator |
 | `ml/` | feature tracker, predictors (compiled evaluator, LightGBM, oracle), training-data recorder, model metadata |
-| `apps/` | `cachesim` (replay) and `lcache-export` (training data) |
+| `apps/` | `cachesim` (replay), `lcache-export` (training data), `lcache-replay` (trace over RESP) |
+| `server/` | sharded thread-safe store, RESP2 parser, Asio server (`lcache-server`) |
+| `api/` | JSON HTTP API over the simulator (`lcache-api`) |
+| `web/` | React dashboard (Vite, plain JavaScript, Recharts) |
 | `bench/` | Google Benchmark latency suite |
 | `tools/` | trace fetching, training, plotting, and the scripts that reproduce every result |
 | `models/` | the two trained Twitter models with their `.meta` settings |
@@ -232,8 +240,8 @@ build/release/apps/export/lcache-export -t $T -c 1MiB -n 5000000 --every 50 --hi
 | 2. LFU, ARC, W-TinyLFU, Belady | done |
 | 3. Learned policy (features, LightGBM, sampled eviction) | done |
 | 4. Defensive fallback (shadow W-TinyLFU, time budget) | done |
-| 5. Network server (sharded store, Redis RESP subset) | not started |
-| 6. Web dashboard | not started |
+| 5. Network server (sharded store, Redis RESP subset) | done |
+| 6. Web dashboard | part 1 done (API + dashboard); `docker compose` and screenshot next |
 | 7. Docker, CI, final write-up | README done; Docker and CI not started |
 
 Open problems, measured and written up in [`docs/m4-results.md`](docs/m4-results.md): the learned
@@ -242,6 +250,8 @@ settings are request counts, too large for short traces.
 
 ## Further reading
 
-- [`docs/decisions.md`](docs/decisions.md): every design decision and rejected alternative (D1–D21)
+- [`docs/decisions.md`](docs/decisions.md): every design decision and rejected alternative (D1–D26)
 - [`docs/m3-design.md`](docs/m3-design.md): learned-policy design
+- [`docs/m5-design.md`](docs/m5-design.md), [`docs/m6-design.md`](docs/m6-design.md): server
+  and dashboard designs
 - [`docs/m3-results.md`](docs/m3-results.md), [`docs/m4-results.md`](docs/m4-results.md): all measurements, with commands
